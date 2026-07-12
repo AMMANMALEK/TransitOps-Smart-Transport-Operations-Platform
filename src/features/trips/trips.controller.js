@@ -1,10 +1,23 @@
 const Trip = require('./trip.model');
 const businessRules = require('../../services/businessRules');
 
-// Get all trips
+// Get all trips with optional filters
 exports.getTrips = async (req, res, next) => {
   try {
-    const trips = await Trip.find()
+    const { driverId, vehicleId, status } = req.query;
+    const filter = {};
+
+    if (driverId) {
+      filter.driverId = driverId;
+    }
+    if (vehicleId) {
+      filter.vehicleId = vehicleId;
+    }
+    if (status) {
+      filter.status = status;
+    }
+
+    const trips = await Trip.find(filter)
       .populate('vehicleId', 'registrationNumber name model')
       .populate('driverId', 'name licenseNumber')
       .populate('createdBy', 'name email role');
