@@ -3,6 +3,8 @@ import Layout from '../components/Layout';
 import { tripsAPI } from '../api/trips';
 import { vehiclesAPI } from '../api/vehicles';
 import { driversAPI } from '../api/drivers';
+import { useAppState } from '../context/StateContext';
+import { hasActionAccess } from '../config/permissions';
 
 const TRIP_STEPS = ['Draft', 'Dispatched', 'Completed', 'Cancelled'];
 const TRIP_STATUSES = ['All Status', 'Draft', 'Dispatched', 'Completed', 'Cancelled'];
@@ -48,6 +50,8 @@ function TripProgress({ status }) {
 }
 
 function TripDetailPanel({ trip, onClose, onUpdate }) {
+  const { user } = useAppState();
+  const canManage = hasActionAccess(user?.role, 'trips', 'manage');
   const [completeForm, setCompleteForm] = useState({ actualDistance: '', fuelConsumed: '', revenue: '', fuelCost: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -135,7 +139,7 @@ function TripDetailPanel({ trip, onClose, onUpdate }) {
           <TripProgress status={trip.status} />
         </div>
 
-        {trip.status === 'Draft' && (
+        {trip.status === 'Draft' && canManage && (
           <div className="driver-panel-actions">
             <button type="button" className="transit-btn transit-btn-primary" onClick={handleDispatch} disabled={loading}>
               <span className="material-symbols-outlined">local_shipping</span>Dispatch Vehicle
@@ -143,7 +147,7 @@ function TripDetailPanel({ trip, onClose, onUpdate }) {
           </div>
         )}
 
-        {trip.status === 'Dispatched' && (
+        {trip.status === 'Dispatched' && canManage && (
           <div className="trip-panel-section" style={{ borderTop: '1px solid rgba(148,163,184,.16)', paddingTop: '16px' }}>
             <h3 style={{ color: '#fff', fontSize: '14px', marginBottom: '12px' }}>Complete Trip Metrics</h3>
             <form onSubmit={handleComplete} className="drawer-form" style={{ background: 'transparent', padding: 0 }}>
@@ -264,6 +268,8 @@ function CreateTripDrawer({ open, onClose, onAdd, vehicles, drivers }) {
 }
 
 const TripManagement = () => {
+  const { user } = useAppState();
+  const canManage = hasActionAccess(user?.role, 'trips', 'manage');
   const [trips, setTrips] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -334,7 +340,9 @@ const TripManagement = () => {
             <span>Plan, dispatch, track, and close transport movements from one operational command table.</span>
           </div>
           <div className="vehicle-controls trip-controls">
-            <button type="button" className="transit-btn transit-btn-primary" onClick={() => setCreateOpen(true)}><span className="material-symbols-outlined">add_road</span>Create Trip</button>
+            {canManage && (
+              <button type="button" className="transit-btn transit-btn-primary" onClick={() => setCreateOpen(true)}><span className="material-symbols-outlined">add_road</span>Create Trip</button>
+            )}
             <label className="vehicle-search" aria-label="Search trips"><span className="material-symbols-outlined">search</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search trip ID, route, vehicle, driver" /></label>
             <select value={status} onChange={event => setStatus(event.target.value)} aria-label="Trip status filter">{TRIP_STATUSES.map(item => <option key={item}>{item}</option>)}</select>
           </div>

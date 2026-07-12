@@ -2,6 +2,8 @@ import { useMemo, useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { maintenanceAPI } from '../api/maintenance';
 import { vehiclesAPI } from '../api/vehicles';
+import { useAppState } from '../context/StateContext';
+import { hasActionAccess } from '../config/permissions';
 
 const TYPES = ['Preventive Service', 'Engine Inspection', 'Brake System', 'Tyre Replacement', 'Electrical Repair', 'Body Work'];
 const PRIORITIES = ['Low', 'Medium', 'High', 'Critical'];
@@ -58,6 +60,8 @@ function VehiclePill({ registrationNumber, status }) {
 }
 
 const MaintenanceManagement = () => {
+  const { user } = useAppState();
+  const canManage = hasActionAccess(user?.role, 'maintenance', 'manage');
   const [logs, setLogs] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -217,10 +221,12 @@ const MaintenanceManagement = () => {
                 <strong>{formatCurrency(form.cost)}</strong>
               </div>
 
-              <div className="drawer-actions">
-                <button type="button" className="transit-btn" onClick={() => setForm(prev => ({ ...prev, notes: '', cost: 15000 }))}>Reset</button>
-                <button type="submit" className="transit-btn transit-btn-primary"><span className="material-symbols-outlined">add_task</span>Save Work Order</button>
-              </div>
+              {canManage && (
+                <div className="drawer-actions">
+                  <button type="button" className="transit-btn" onClick={() => setForm(prev => ({ ...prev, notes: '', cost: 15000 }))}>Reset</button>
+                  <button type="submit" className="transit-btn transit-btn-primary"><span className="material-symbols-outlined">add_task</span>Save Work Order</button>
+                </div>
+              )}
             </form>
 
             <aside className="transit-panel maintenance-timeline-panel">
@@ -239,7 +245,7 @@ const MaintenanceManagement = () => {
                     <div><span>Status</span><Badge value={selected.status} /></div>
                   </div>
 
-                  {selected.status === 'Active' && (
+                  {selected.status === 'Active' && canManage && (
                     <div className="driver-panel-actions" style={{ marginTop: '16px', justifyContent: 'flex-end' }}>
                       <button type="button" className="transit-btn transit-btn-primary" onClick={() => handleCloseMaintenance(selected._id)}>
                         <span className="material-symbols-outlined">verified</span>Close &amp; Release Vehicle

@@ -2,6 +2,8 @@ import { useMemo, useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { financeAPI } from '../api/finance';
 import { vehiclesAPI } from '../api/vehicles';
+import { useAppState } from '../context/StateContext';
+import { hasActionAccess } from '../config/permissions';
 
 const DATE_FILTERS = ['All Time', 'Today', 'Last 7 Days', 'This Month'];
 const EXPENSE_TYPES = ['Fuel', 'Toll', 'Other'];
@@ -137,6 +139,8 @@ function AddExpenseDrawer({ open, onClose, onAdd, vehicles }) {
 }
 
 const FuelExpenseManagement = () => {
+  const { user } = useAppState();
+  const canLog = hasActionAccess(user?.role, 'finance', 'logExpense');
   const [vehicles, setVehicles] = useState([]);
   const [fuelLogs, setFuelLogs] = useState([]);
   const [expenses, setExpenses] = useState([]);
@@ -245,9 +249,11 @@ const FuelExpenseManagement = () => {
             <span>Record fuel purchases, track tolls, and manage fleet operational cost centers dynamically.</span>
           </div>
           <div className="vehicle-controls">
-            <button type="button" className="transit-btn transit-btn-primary" onClick={() => setDrawerOpen(true)}>
-              <span className="material-symbols-outlined">add_card</span>Log Expense/Fuel
-            </button>
+            {canLog && (
+              <button type="button" className="transit-btn transit-btn-primary" onClick={() => setDrawerOpen(true)}>
+                <span className="material-symbols-outlined">add_card</span>Log Expense/Fuel
+              </button>
+            )}
             <select value={vehicleFilter} onChange={event => setVehicleFilter(event.target.value)} aria-label="Vehicle filter">
               <option value="All Vehicles">All Vehicles</option>
               {vehicles.map(v => <option key={v._id} value={v._id}>{v.registrationNumber}</option>)}

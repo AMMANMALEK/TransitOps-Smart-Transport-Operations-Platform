@@ -3,44 +3,6 @@ import { authAPI } from '../api/auth';
 
 const StateContext = createContext();
 
-// Mock users for offline login
-const MOCK_USERS = [
-  {
-    id: 'USR-001',
-    name: 'Admin User',
-    email: 'admin@transitops.com',
-    password: 'Admin@123',
-    role: 'fleet_manager',
-  },
-  {
-    id: 'USR-002',
-    name: 'Rahul Sharma',
-    email: 'fleet@transitops.com',
-    password: 'Fleet@123',
-    role: 'fleet_manager',
-  },
-  {
-    id: 'USR-003',
-    name: 'Dev Mehta',
-    email: 'driver@transitops.com',
-    password: 'Driver@123',
-    role: 'driver',
-  },
-  {
-    id: 'USR-004',
-    name: 'Priya Nair',
-    email: 'safety@transitops.com',
-    password: 'Safety@123',
-    role: 'safety_officer',
-  },
-  {
-    id: 'USR-005',
-    name: 'Meera Kapoor',
-    email: 'finance@transitops.com',
-    password: 'Finance@123',
-    role: 'financial_analyst',
-  },
-];
 
 export const StateProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
@@ -75,14 +37,11 @@ export const StateProvider = ({ children }) => {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         
-        // Normalize role for frontend consistency (e.g. FleetManager -> fleet_manager)
-        const normalizedRole = data.user.role.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
-        
         const loggedUser = {
           id: data.user.id,
           name: data.user.name,
           email: data.user.email,
-          role: normalizedRole,
+          role: data.user.role,
         };
         setUser(loggedUser);
         return loggedUser;

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { StateProvider, useAppState } from './context/StateContext';
+import { ROLE_HOME, hasRouteAccess } from './config/permissions';
 
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -10,19 +11,12 @@ import MaintenanceManagement from './pages/MaintenanceManagement';
 import FuelExpenseManagement from './pages/FuelExpenseManagement';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 
-const ROLE_HOME = {
-  fleet_manager: '/dashboard',
-  driver: '/trips',
-  safety_officer: '/drivers',
-  financial_analyst: '/expenses',
-};
-
 const homeFor = role => ROLE_HOME[role] || '/dashboard';
 
-const RoleRoute = ({ children, allowedRoles }) => {
+const RoleRoute = ({ children, routePath }) => {
   const { user } = useAppState();
   if (!user) return <Navigate to="/login" replace />;
-  if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to={homeFor(user.role)} replace />;
+  if (!hasRouteAccess(user.role, routePath)) return <Navigate to={homeFor(user.role)} replace />;
   return children;
 };
 
@@ -33,14 +27,14 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
 
-      {/* All authenticated users can access all pages */}
-      <Route path="/dashboard" element={<RoleRoute><Dashboard /></RoleRoute>} />
-      <Route path="/vehicles" element={<RoleRoute><VehicleRegistry /></RoleRoute>} />
-      <Route path="/drivers" element={<RoleRoute><DriverManagement /></RoleRoute>} />
-      <Route path="/trips" element={<RoleRoute><TripManagement /></RoleRoute>} />
-      <Route path="/maintenance" element={<RoleRoute><MaintenanceManagement /></RoleRoute>} />
-      <Route path="/expenses" element={<RoleRoute><FuelExpenseManagement /></RoleRoute>} />
-      <Route path="/analytics" element={<RoleRoute><AnalyticsDashboard /></RoleRoute>} />
+      {/* Role-restricted pages */}
+      <Route path="/dashboard" element={<RoleRoute routePath="/dashboard"><Dashboard /></RoleRoute>} />
+      <Route path="/vehicles" element={<RoleRoute routePath="/vehicles"><VehicleRegistry /></RoleRoute>} />
+      <Route path="/drivers" element={<RoleRoute routePath="/drivers"><DriverManagement /></RoleRoute>} />
+      <Route path="/trips" element={<RoleRoute routePath="/trips"><TripManagement /></RoleRoute>} />
+      <Route path="/maintenance" element={<RoleRoute routePath="/maintenance"><MaintenanceManagement /></RoleRoute>} />
+      <Route path="/expenses" element={<RoleRoute routePath="/expenses"><FuelExpenseManagement /></RoleRoute>} />
+      <Route path="/analytics" element={<RoleRoute routePath="/analytics"><AnalyticsDashboard /></RoleRoute>} />
 
       <Route path="*" element={user ? <Navigate to={homeFor(user.role)} replace /> : <Navigate to="/login" replace />} />
     </Routes>

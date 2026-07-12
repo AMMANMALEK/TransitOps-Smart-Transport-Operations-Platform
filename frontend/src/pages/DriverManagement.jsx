@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { driversAPI } from '../api/drivers';
+import { useAppState } from '../context/StateContext';
+import { hasActionAccess } from '../config/permissions';
 
 const LICENSE_STATUSES = ['All Licenses', 'Valid', 'Expiring Soon', 'Expired'];
 const SCORE_FILTERS = ['All Scores', '90+ Excellent', '80-89 Good', '70-79 Watchlist', 'Below 70'];
@@ -124,6 +126,8 @@ function EmptyDrivers() {
 }
 
 function DriverProfilePanel({ driver, onClose, onDelete }) {
+  const { user } = useAppState();
+  const canDelete = hasActionAccess(user?.role, 'drivers', 'delete');
   if (!driver) return null;
   const remaining = daysUntil(driver.licenseExpiryDate);
   const licStatus = getLicenseStatus(driver.licenseExpiryDate);
@@ -154,9 +158,11 @@ function DriverProfilePanel({ driver, onClose, onDelete }) {
           <p>Expires {formatDate(driver.licenseExpiryDate)}{remaining >= 0 ? ' in ' + remaining + ' days.' : '. Renewal is overdue.'}</p>
         </div>
         <div className="driver-panel-actions">
-          <button type="button" className="transit-btn" style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,.3)' }} onClick={() => onDelete(driver._id)}>
-            <span className="material-symbols-outlined">delete</span>Delete Profile
-          </button>
+          {canDelete && (
+            <button type="button" className="transit-btn" style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,.3)' }} onClick={() => onDelete(driver._id)}>
+              <span className="material-symbols-outlined">delete</span>Delete Profile
+            </button>
+          )}
           <button type="button" className="transit-btn transit-btn-primary" onClick={onClose}>
             <span className="material-symbols-outlined">done</span>Done
           </button>
@@ -219,6 +225,9 @@ function AddDriverDrawer({ open, onClose, onAdd }) {
 }
 
 const DriverManagement = () => {
+  const { user } = useAppState();
+  const canEdit = hasActionAccess(user?.role, 'drivers', 'edit');
+  const canDelete = hasActionAccess(user?.role, 'drivers', 'delete');
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -288,7 +297,9 @@ const DriverManagement = () => {
             <label className="vehicle-search" aria-label="Search drivers"><span className="material-symbols-outlined">search</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search driver, license, phone" /></label>
             <select value={licenseStatus} onChange={event => setLicenseStatus(event.target.value)} aria-label="License status filter">{LICENSE_STATUSES.map(item => <option key={item}>{item}</option>)}</select>
             <select value={scoreFilter} onChange={event => setScoreFilter(event.target.value)} aria-label="Safety score filter">{SCORE_FILTERS.map(item => <option key={item}>{item}</option>)}</select>
-            <button type="button" className="transit-btn transit-btn-primary" onClick={() => setAddOpen(true)}><span className="material-symbols-outlined">person_add</span>Add Driver</button>
+            {canEdit && (
+              <button type="button" className="transit-btn transit-btn-primary" onClick={() => setAddOpen(true)}><span className="material-symbols-outlined">person_add</span>Add Driver</button>
+            )}
           </div>
         </section>
 
@@ -337,7 +348,17 @@ const DriverManagement = () => {
                           <td><div className="expiry-cell"><strong>{formatDate(driver.licenseExpiryDate)}</strong>{isExpiringSoon(driver) && <span>{daysUntil(driver.licenseExpiryDate)} days left</span>}</div></td>
                           <td>{driver.licenseCategory}</td>
                           <td><DriverBadge value={driver.status} /></td>
-                          <td><div className="row-actions"><button type="button" onClick={event => { event.stopPropagation(); setSelectedDriver(driver); }} aria-label={'Open ' + driver.name}><span className="material-symbols-outlined">visibility</span></button><button type="button" onClick={event => { event.stopPropagation(); handleDelete(driver._id); }} style={{ color: '#fca5a5' }} aria-label="Delete driver"><span className="material-symbols-outlined">delete</span></button></div></td>
+                          <td>
+                            <div className="row-actions">
+                              <button type="button" onClick={event => { event.stopPropagation(); setSelectedDriver(driver); }} aria-label={'Open ' + driver.name}><span className="material-symbols-outlined">visibility</span></button>
+                              {canEdit && (
+                                <button type="button" onClick={event => { event.stopPropagation(); setSelectedDriver(driver); }} aria-label="Edit driver"><span className="material-symbols-outlined">edit</span></button>
+                              )}
+                              {canDelete && (
+                                <button type="button" onClick={event => { event.stopPropagation(); handleDelete(driver._id); }} style={{ color: '#fca5a5' }} aria-label="Delete driver"><span className="material-symbols-outlined">delete</span></button>
+                              )}
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}

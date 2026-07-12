@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import Layout from '../components/Layout';
 import { reportsAPI } from '../api/reports';
+import { useAppState } from '../context/StateContext';
+import { hasActionAccess } from '../config/permissions';
 
 const HEAT_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const HEAT_SLOTS = ['06', '09', '12', '15', '18', '21'];
@@ -26,6 +28,8 @@ function formatCurrency(value) {
 }
 
 function AnalyticsDashboard() {
+  const { user } = useAppState();
+  const canExport = hasActionAccess(user?.role, 'reports', 'exportCSV');
   const [roiData, setRoiData] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -144,9 +148,11 @@ function AnalyticsDashboard() {
             <span>Executive visibility into revenue, efficiency, utilization, ROI, and operating cost performance.</span>
           </div>
           <div className="analytics-actions">
-            <button type="button" className="transit-btn transit-btn-primary" onClick={handleExportCSV}>
-              <span className="material-symbols-outlined">table_view</span>Export CSV
-            </button>
+            {canExport && (
+              <button type="button" className="transit-btn transit-btn-primary" onClick={handleExportCSV}>
+                <span className="material-symbols-outlined">table_view</span>Export CSV
+              </button>
+            )}
           </div>
         </section>
 

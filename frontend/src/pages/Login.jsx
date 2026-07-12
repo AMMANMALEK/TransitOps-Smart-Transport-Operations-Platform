@@ -2,12 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../context/StateContext';
 
-const ROLE_HOME = {
-  fleet_manager: '/dashboard',
-  driver: '/trips',
-  safety_officer: '/drivers',
-  financial_analyst: '/expenses',
-};
+import { ROLE_HOME } from '../config/permissions';
 
 const homeFor = role => ROLE_HOME[role] || '/dashboard';
 

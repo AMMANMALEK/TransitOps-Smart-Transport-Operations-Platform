@@ -2,28 +2,30 @@ import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAppState } from '../context/StateContext';
 import ConfirmModal from './ConfirmModal';
+import { ROLES, hasRouteAccess } from '../config/permissions';
 
 const ALL_NAV = [
   { section: 'Command', items: [
-    { name: 'Dashboard', path: '/dashboard', icon: 'monitoring', roles: ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'] },
+    { name: 'Dashboard', path: '/dashboard', icon: 'monitoring' },
   ]},
   { section: 'Operations', items: [
-    { name: 'Vehicle Registry', path: '/vehicles', icon: 'directions_bus', roles: ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'] },
-    { name: 'Driver Management', path: '/drivers', icon: 'badge', roles: ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'] },
-    { name: 'Trip Management', path: '/trips', icon: 'route', roles: ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'] },
-    { name: 'Maintenance', path: '/maintenance', icon: 'engineering', roles: ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'] },
-    { name: 'Fuel & Expenses', path: '/expenses', icon: 'payments', roles: ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'] },
+    { name: 'Vehicle Registry', path: '/vehicles', icon: 'directions_bus' },
+    { name: 'Driver Management', path: '/drivers', icon: 'badge' },
+    { name: 'Trip Management', path: '/trips', icon: 'route' },
+    { name: 'Maintenance', path: '/maintenance', icon: 'engineering' },
+    { name: 'Fuel & Expenses', path: '/expenses', icon: 'payments' },
   ]},
   { section: 'Intelligence', items: [
-    { name: 'Reports & Analytics', path: '/analytics', icon: 'insights', roles: ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'] },
+    { name: 'Reports & Analytics', path: '/analytics', icon: 'insights' },
   ]},
 ];
 
 const ROLE_CONFIG = {
-  fleet_manager: { label: 'Fleet Manager', color: '#6366f1', bg: 'rgba(99,102,241,0.13)', icon: 'supervisor_account' },
-  driver: { label: 'Driver', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)', icon: 'badge' },
-  safety_officer: { label: 'Safety Officer', color: '#10b981', bg: 'rgba(16,185,129,0.12)', icon: 'health_and_safety' },
-  financial_analyst: { label: 'Financial Analyst', color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)', icon: 'query_stats' },
+  [ROLES.ADMIN]: { label: 'Admin', color: '#6366f1', bg: 'rgba(99,102,241,0.13)', icon: 'admin_panel_settings' },
+  [ROLES.FLEET_MANAGER]: { label: 'Fleet Manager', color: '#6366f1', bg: 'rgba(99,102,241,0.13)', icon: 'supervisor_account' },
+  [ROLES.DRIVER]: { label: 'Driver', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)', icon: 'badge' },
+  [ROLES.SAFETY_OFFICER]: { label: 'Safety Officer', color: '#10b981', bg: 'rgba(16,185,129,0.12)', icon: 'health_and_safety' },
+  [ROLES.FINANCIAL_ANALYST]: { label: 'Financial Analyst', color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)', icon: 'query_stats' },
 };
 
 const Sidebar = ({ collapsed: controlledCollapsed, onToggleCollapsed }) => {
@@ -31,8 +33,8 @@ const Sidebar = ({ collapsed: controlledCollapsed, onToggleCollapsed }) => {
   const navigate = useNavigate();
   const [localCollapsed, setLocalCollapsed] = useState(() => localStorage.getItem('vb_sidebar_collapsed') === 'true');
   const collapsed = typeof controlledCollapsed === 'boolean' ? controlledCollapsed : localCollapsed;
-  const role = user?.role || 'officer';
-  const cfg = ROLE_CONFIG[role] || ROLE_CONFIG.fleet_manager;
+  const role = user?.role || ROLES.FLEET_MANAGER;
+  const cfg = ROLE_CONFIG[role] || ROLE_CONFIG[ROLES.FLEET_MANAGER];
 
   useEffect(() => {
     document.body.classList.toggle('sidebar-collapsed', collapsed);
@@ -91,7 +93,7 @@ const Sidebar = ({ collapsed: controlledCollapsed, onToggleCollapsed }) => {
 
         <nav className="flex-1 overflow-y-auto no-scrollbar px-3 py-3">
           {ALL_NAV.map(section => {
-            const visibleItems = section.items.filter(item => item.roles.includes(role));
+            const visibleItems = section.items.filter(item => hasRouteAccess(role, item.path));
             if (!visibleItems.length) return null;
             return <div key={section.section} className="mb-4">
               {!collapsed && <p style={{ color: 'var(--text-muted)', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', padding: '0 12px 8px' }}>{section.section}</p>}

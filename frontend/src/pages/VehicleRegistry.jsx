@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import { vehiclesAPI } from '../api/vehicles';
+import { useAppState } from '../context/StateContext';
+import { hasActionAccess } from '../config/permissions';
 
 const VEHICLE_TYPES = ['All Types', 'Bus', 'Truck', 'Van', 'Service'];
 const STATUSES = ['All Status', 'Available', 'On Trip', 'In Shop', 'Retired'];
@@ -118,6 +120,8 @@ function AddVehicleDrawer({ open, onClose, onAdd }) {
 }
 
 const VehicleRegistry = () => {
+  const { user } = useAppState();
+  const canManage = hasActionAccess(user?.role, 'vehicles', 'manage');
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -176,9 +180,11 @@ const VehicleRegistry = () => {
             <span>Register, monitor, and track every vehicle in your transport network from a unified registry interface.</span>
           </div>
           <div className="vehicle-controls">
-            <button type="button" className="transit-btn transit-btn-primary" onClick={() => setDrawerOpen(true)}>
-              <span className="material-symbols-outlined">add_road</span>Add Vehicle
-            </button>
+            {canManage && (
+              <button type="button" className="transit-btn transit-btn-primary" onClick={() => setDrawerOpen(true)}>
+                <span className="material-symbols-outlined">add_road</span>Add Vehicle
+              </button>
+            )}
             <label className="vehicle-search" aria-label="Search vehicles">
               <span className="material-symbols-outlined">search</span>
               <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search reg, name, type, region" />
@@ -231,7 +237,12 @@ const VehicleRegistry = () => {
                       <td>
                         <div className="row-actions">
                           <button type="button" aria-label="View details"><span className="material-symbols-outlined">visibility</span></button>
-                          <button type="button" onClick={() => handleDelete(vehicle._id)} aria-label="Delete"><span className="material-symbols-outlined">delete</span></button>
+                          {canManage && (
+                            <button type="button" onClick={() => handleDelete(vehicle._id)} aria-label="Edit"><span className="material-symbols-outlined">edit</span></button>
+                          )}
+                          {canManage && (
+                            <button type="button" onClick={() => handleDelete(vehicle._id)} aria-label="Delete"><span className="material-symbols-outlined">delete</span></button>
+                          )}
                         </div>
                       </td>
                     </tr>
