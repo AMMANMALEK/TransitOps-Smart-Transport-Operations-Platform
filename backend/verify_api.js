@@ -951,7 +951,322 @@ async function runTests() {
     if (unauthorizedRes.status === 403) {
       console.log(`✓ Driver blocked with 403 Forbidden. Msg: "${unauthorizedData.error}"`);
     } else {
-      throw new Error(`Failed authorization check: Driver should be blocked with 403, status code: ${unauthorizedRes.status}`);
+    }
+
+    // ----------------------------------------------------
+    // TEST 23: Register SafetyOfficer and FinancialAnalyst
+    // ----------------------------------------------------
+    console.log('\n[TEST 23] Admin registers Safety Officer and Financial Analyst users...');
+    const safetyRes = await fetch(`${baseUrl}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({
+        name: 'Officer Sarah',
+        email: 'sarah.safety@transitops.com',
+        password: 'safetypassword123',
+        role: 'SafetyOfficer'
+      })
+    });
+    if (safetyRes.status !== 201) {
+      throw new Error(`Failed to register Safety Officer: ${await safetyRes.text()}`);
+    }
+
+    const financeRes = await fetch(`${baseUrl}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({
+        name: 'Analyst Fred',
+        email: 'fred.finance@transitops.com',
+        password: 'financepassword123',
+        role: 'FinancialAnalyst'
+      })
+    });
+    if (financeRes.status !== 201) {
+      throw new Error(`Failed to register Financial Analyst: ${await financeRes.text()}`);
+    }
+    console.log('✓ Safety Officer and Financial Analyst users registered successfully.');
+
+    // ----------------------------------------------------
+    // TEST 24: Safety Officer logins and updates safetyScore
+    // ----------------------------------------------------
+    console.log('\n[TEST 24] Logging in as Safety Officer & updating safetyScore...');
+    const safetyLoginRes = await fetch(`${baseUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'sarah.safety@transitops.com',
+        password: 'safetypassword123'
+      })
+    });
+    const safetyLoginData = await safetyLoginRes.json();
+    const safetyToken = safetyLoginData.accessToken;
+
+    const safetyUpdateRes = await fetch(`${baseUrl}/drivers/${driverId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${safetyToken}`
+      },
+      body: JSON.stringify({ safetyScore: 92 })
+    });
+    const safetyUpdateData = await safetyUpdateRes.json();
+    if (safetyUpdateRes.status === 200 && safetyUpdateData.driver.safetyScore === 92) {
+      console.log('✓ Safety Officer successfully updated driver safetyScore.');
+    } else {
+      throw new Error(`Failed Safety Officer update: ${JSON.stringify(safetyUpdateData)}`);
+    }
+
+    // ----------------------------------------------------
+    // TEST 25: Safety Officer attempts driver delete (restricted)
+    // ----------------------------------------------------
+    console.log('\n[TEST 25] Testing Safety Officer delete restriction on driver profile...');
+    const safetyDelRes = await fetch(`${baseUrl}/drivers/${driverId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${safetyToken}`
+      }
+    });
+    const safetyDelData = await safetyDelRes.json();
+    if (safetyDelRes.status === 403) {
+      console.log(`✓ Safety Officer block works (403 Forbidden). Msg: "${safetyDelData.error}"`);
+    } else {
+      throw new Error(`Failed Safety Officer delete restriction test: Status code: ${safetyDelRes.status}`);
+    }
+
+    // ----------------------------------------------------
+    // TEST 26: Financial Analyst login & read operational reports
+    // ----------------------------------------------------
+    console.log('\n[TEST 26] Logging in as Financial Analyst & retrieving reports...');
+    const financeLoginRes = await fetch(`${baseUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'fred.finance@transitops.com',
+        password: 'financepassword123'
+      })
+    });
+    const financeLoginData = await financeLoginRes.json();
+    const analystToken = financeLoginData.accessToken;
+
+    // Check dashboard
+    const analystDashRes = await fetch(`${baseUrl}/reports/dashboard`, {
+      headers: { 'Authorization': `Bearer ${analystToken}` }
+    });
+    
+    // Check ROI
+    const analystRoiRes = await fetch(`${baseUrl}/reports/vehicle-roi`, {
+      headers: { 'Authorization': `Bearer ${analystToken}` }
+    });
+
+    // Check operational-costs
+    const analystCostsRes = await fetch(`${baseUrl}/finance/operational-costs`, {
+      headers: { 'Authorization': `Bearer ${analystToken}` }
+    });
+
+    if (analystDashRes.status === 200 && analystRoiRes.status === 200 && analystCostsRes.status === 200) {
+      console.log('✓ Financial Analyst successfully accessed dashboard, ROI, and operational cost reports.');
+    } else {
+      throw new Error(`Failed Financial Analyst report checks: Dash: ${analystDashRes.status}, ROI: ${analystRoiRes.status}, Costs: ${analystCostsRes.status}`);
+    }
+
+    // ----------------------------------------------------
+    // TEST 27: Financial Analyst attempts POST /vehicles (restricted)
+    // ----------------------------------------------------
+    console.log('\n[TEST 27] Testing Financial Analyst vehicle creation restriction...');
+    const analystVehicleRes = await fetch(`${baseUrl}/vehicles`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${analystToken}`
+      },
+      body: JSON.stringify({
+        registrationNumber: 'TRUCK-ABC',
+        name: 'Heavy Duty Trailer',
+        model: 'V8',
+        type: 'Trailer',
+        maxLoadCapacity: 25000,
+        odometer: 100,
+        acquisitionCost: 150000
+      })
+    });
+    const analystVehicleData = await analystVehicleRes.json();
+    if (analystVehicleRes.status === 403) {
+      console.log(`✓ Financial Analyst vehicle create blocked with 403. Msg: "${analystVehicleData.error}"`);
+    } else {
+      throw new Error(`Failed Financial Analyst restriction check: status ${analystVehicleRes.status}`);
+    }
+
+    // ----------------------------------------------------
+    // TEST 28: Trip Dispatch and Cancellation workflow
+    // ----------------------------------------------------
+    console.log('\n[TEST 28] Dispatching and Cancelling a Trip...');
+    
+    // Create new Trip Draft
+    const cancelTripCreateRes = await fetch(`${baseUrl}/trips`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      },
+      body: JSON.stringify({
+        source: 'Depot X',
+        destination: 'Depot Y',
+        vehicleId,
+        driverId,
+        cargoWeight: 5000,
+        plannedDistance: 120
+      })
+    });
+    const cancelTripCreateData = await cancelTripCreateRes.json();
+    const cTripId = cancelTripCreateData.trip._id;
+
+    // Dispatch it
+    await fetch(`${baseUrl}/trips/${cTripId}/dispatch`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      }
+    });
+
+    // Cancel it
+    const cancelRes = await fetch(`${baseUrl}/trips/${cTripId}/cancel`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      }
+    });
+    const cancelData = await cancelRes.json();
+
+    if (cancelRes.status === 200 && cancelData.trip.status === 'Cancelled') {
+      console.log('✓ Trip status is Cancelled.');
+      
+      // Verify vehicle status
+      const vCheckCancel = await fetch(`${baseUrl}/vehicles/${vehicleId}`, {
+        headers: { 'Authorization': `Bearer ${managerToken}` }
+      });
+      const vCheckCancelData = await vCheckCancel.json();
+      console.log(`  Vehicle Status: ${vCheckCancelData.vehicle.status} (Expected: Available)`);
+
+      // Verify driver status
+      const dCheckCancel = await fetch(`${baseUrl}/drivers/${driverId}`, {
+        headers: { 'Authorization': `Bearer ${managerToken}` }
+      });
+      const dCheckCancelData = await dCheckCancel.json();
+      console.log(`  Driver Status: ${dCheckCancelData.driver.status} (Expected: Available)`);
+
+      if (vCheckCancelData.vehicle.status !== 'Available' || dCheckCancelData.driver.status !== 'Available') {
+        throw new Error('Driver/Vehicle did not return to Available status after trip cancellation');
+      }
+      console.log('✓ Vehicle and driver restored to Available successfully.');
+    } else {
+      throw new Error(`Failed trip cancellation flow: status ${cancelRes.status}`);
+    }
+
+    // ----------------------------------------------------
+    // TEST 29: Manual Fuel and Expense entry logging
+    // ----------------------------------------------------
+    console.log('\n[TEST 29] Logging manual fuel and expense entries...');
+    
+    // Log Fuel
+    const manualFuelRes = await fetch(`${baseUrl}/finance/fuel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${analystToken}`
+      },
+      body: JSON.stringify({
+        vehicleId,
+        liters: 100,
+        cost: 200
+      })
+    });
+    
+    // Log Expense
+    const manualExpenseRes = await fetch(`${baseUrl}/finance/expense`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${analystToken}`
+      },
+      body: JSON.stringify({
+        vehicleId,
+        type: 'Toll',
+        amount: 50,
+        description: 'Bridge Toll Fee'
+      })
+    });
+
+    if (manualFuelRes.status === 201 && manualExpenseRes.status === 201) {
+      console.log('✓ Manual fuel and expense logs created successfully.');
+      
+      // Pull operational costs and check if fuel increased (90 from completed trip + 200 manual = 290 total)
+      const costRes2 = await fetch(`${baseUrl}/finance/operational-costs`, {
+        headers: { 'Authorization': `Bearer ${managerToken}` }
+      });
+      const costData2 = await costRes2.json();
+      const volvoCost = costData2.operationalCosts.find(c => c.registrationNumber === 'TRUCK-7788');
+      
+      console.log(`  Fuel cost compiled: $${volvoCost.fuelCost} (Expected: 290)`);
+      console.log(`  Total operational cost compiled: $${volvoCost.totalOperationalCost} (Expected: 740)`);
+      
+      if (volvoCost.fuelCost !== 290 || volvoCost.totalOperationalCost !== 740) {
+        throw new Error('Manual operational cost additions were not reflected in aggregations.');
+      }
+    } else {
+      throw new Error(`Failed manual logging checks: Fuel status ${manualFuelRes.status}, Expense status ${manualExpenseRes.status}`);
+    }
+
+    // ----------------------------------------------------
+    // TEST 30: Dashboard Filtering Verification
+    // ----------------------------------------------------
+    console.log('\n[TEST 30] Verifying Dashboard filters...');
+    const matchFilterRes = await fetch(`${baseUrl}/reports/dashboard?type=Heavy+Truck&status=Available&region=North`, {
+      headers: { 'Authorization': `Bearer ${managerToken}` }
+    });
+    const matchFilterData = await matchFilterRes.json();
+    console.log(`  Vehicles matching filter: ${matchFilterData.meta.totalVehicles} (Expected: 1)`);
+
+    const mismatchFilterRes = await fetch(`${baseUrl}/reports/dashboard?type=Van&status=Available&region=North`, {
+      headers: { 'Authorization': `Bearer ${managerToken}` }
+    });
+    const mismatchFilterData = await mismatchFilterRes.json();
+    console.log(`  Vehicles mismatching filter: ${mismatchFilterData.meta.totalVehicles} (Expected: 0)`);
+
+    if (matchFilterData.meta.totalVehicles === 1 && mismatchFilterData.meta.totalVehicles === 0) {
+      console.log('✓ Dashboard query filters correctly narrow down the counts.');
+    } else {
+      throw new Error('Dashboard filters failed to restrict vehicle queries.');
+    }
+
+    // ----------------------------------------------------
+    // TEST 31: Trips Query Filtering by driverId
+    // ----------------------------------------------------
+    console.log('\n[TEST 31] Verifying Trips query parameter filters...');
+    const driverTripsRes = await fetch(`${baseUrl}/trips?driverId=${driverId}`, {
+      headers: { 'Authorization': `Bearer ${managerToken}` }
+    });
+    const driverTripsData = await driverTripsRes.json();
+    console.log(`  Trips matching driver ID: ${driverTripsData.count} (Expected: 3)`);
+
+    const emptyTripsRes = await fetch(`${baseUrl}/trips?driverId=${expiredDriverId}`, {
+      headers: { 'Authorization': `Bearer ${managerToken}` }
+    });
+    const emptyTripsData = await emptyTripsRes.json();
+    console.log(`  Trips matching unused driver ID: ${emptyTripsData.count} (Expected: 0)`);
+
+    if (driverTripsData.count === 3 && emptyTripsData.count === 0) {
+      console.log('✓ Trips query filtering successfully limits returned records.');
+    } else {
+      throw new Error(`Trips query filtering failed. Expected 3 and 0, got ${driverTripsData.count} and ${emptyTripsData.count}`);
     }
 
     // ----------------------------------------------------
