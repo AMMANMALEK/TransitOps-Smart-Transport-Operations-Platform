@@ -136,14 +136,15 @@ export default function Login() {
     event.preventDefault();
     setError('');
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 420));
-    const loggedUser = login(email.trim(), password);
-    setLoading(false);
-    if (!loggedUser) {
-      setError('The email or password is incorrect. Please verify your credentials.');
-      return;
+    
+    try {
+      const loggedUser = await login(email.trim(), password);
+      navigate(homeFor(loggedUser.role));
+    } catch (err) {
+      setError(err.message || 'The email or password is incorrect. Please verify your credentials.');
+    } finally {
+      setLoading(false);
     }
-    navigate(homeFor(loggedUser.role));
   };
 
   return (

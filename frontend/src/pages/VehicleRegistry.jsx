@@ -1,16 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-
-const INITIAL_VEHICLES = [
-  { id: 1, reg: 'KA-01-TX-2048', model: 'Volvo 9400 Intercity', type: 'Bus', capacity: '52 seats', driver: 'Anika Rao', fuel: 84, status: 'Available' },
-  { id: 2, reg: 'MH-12-FL-7781', model: 'Tata Prima 5530', type: 'Truck', capacity: '32 tons', driver: 'Dev Mehta', fuel: 61, status: 'On Trip' },
-  { id: 3, reg: 'DL-09-UR-1188', model: 'Ashok Leyland Lynx', type: 'Bus', capacity: '41 seats', driver: 'Maya Singh', fuel: 28, status: 'Maintenance' },
-  { id: 4, reg: 'TN-22-LG-0432', model: 'Force Traveller 3350', type: 'Van', capacity: '18 seats', driver: 'Rohan Iyer', fuel: 72, status: 'Available' },
-  { id: 5, reg: 'GJ-05-RT-3904', model: 'Eicher Pro 3015', type: 'Truck', capacity: '16 tons', driver: 'Kabir Shah', fuel: 45, status: 'On Trip' },
-  { id: 6, reg: 'KA-03-SV-0097', model: 'Mahindra Bolero Camper', type: 'Service', capacity: '1.5 tons', driver: 'Noor Ali', fuel: 12, status: 'Retired' },
-  { id: 7, reg: 'TS-07-MB-6201', model: 'Mercedes-Benz City Bus', type: 'Bus', capacity: '48 seats', driver: 'Isha Nair', fuel: 93, status: 'Available' },
-  { id: 8, reg: 'RJ-14-DR-5520', model: 'Tata Winger Staff', type: 'Van', capacity: '15 seats', driver: 'Arjun Menon', fuel: 57, status: 'Maintenance' },
-];
+import { vehiclesAPI } from '../api/vehicles';
 
 const VEHICLE_TYPES = ['All Types', 'Bus', 'Truck', 'Van', 'Service'];
 const STATUSES = ['All Status', 'Available', 'On Trip', 'Maintenance', 'Retired'];
@@ -28,7 +18,7 @@ function StatusBadge({ status }) {
 }
 
 function FuelLevel({ value }) {
-  const tone = value < 25 ? '#fca5a5' : value < 55 ? '#fbbf24' : '#86efac';
+  const tone = value < 25 ? '#fca5a5' : value < 55 ? '#fb923c' : '#86efac';
   return <div className="fuel-cell"><div><span style={{ width: value + '%', background: tone }} /></div><strong>{value}%</strong></div>;
 }
 
@@ -43,34 +33,59 @@ function EmptyState() {
 }
 
 function AddVehicleDrawer({ open, onClose, onAdd }) {
-  const [form, setForm] = useState({ reg: '', model: '', type: 'Bus', capacity: '', driver: '', fuel: 78, status: 'Available' });
+  const [form, setForm] = useState({ registrationNumber: '', model: '', type: 'Bus', capacity: '', assignedDriver: '', fuelLevel: 78, status: 'Available' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  
   if (!open) return null;
 
-  const set = field => event => setForm(prev => ({ ...prev, [field]: field === 'fuel' ? Number(event.target.value) : event.target.value }));
-  const submit = event => {
+  const set = field => event => setForm(prev => ({ ...prev, [field]: field === 'fuelLevel' ? Number(event.target.value) : event.target.value }));
+  
+  const submit = async event => {
     event.preventDefault();
-    onAdd(form);
-    setForm({ reg: '', model: '', type: 'Bus', capacity: '', driver: '', fuel: 78, status: 'Available' });
+    setError('');
+    setLoading(true);
+    
+    try {
+      const newVehicle = await vehiclesAPI.create(form);
+      onAdd(newVehicle);
+      setForm({ registrationNumber: '', model: '', type: 'Bus', capacity: '', assignedDriver: '', fuelLevel: 78, status: 'Available' });
+    } catch (err) {
+      const errorMessage = err.response?.data?.error || 'Failed to create vehicle';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="drawer-backdrop" role="presentation" onMouseDown={onClose}>
-      <aside className="vehicle-drawer" role="dialog" aria-modal="true" aria-label="Add vehicle" onMouseDown={event => event.stopPropagation()}>
+      <aside className="vehicle-drawer" role="dialog" aria-modal="true" onMouseDown={event => event.stopPropagation()}>
         <div className="drawer-head">
-          <div><p className="transit-kicker">Registry Control</p><h2>Add Vehicle</h2></div>
-          <button type="button" onClick={onClose} aria-label="Close drawer"><span className="material-symbols-outlined">close</span></button>
+          <div><p className="transit-kicker">Vehicle Registry</p><h2>Add Vehicle</h2></div>
+          <button type="button" onClick={onClose} aria-label="Close"><span className="material-symbols-outlined">close</span></button>
         </div>
+        
         <form onSubmit={submit} className="drawer-form">
-          <label>Registration Number<input required value={form.reg} onChange={set('reg')} placeholder="KA-01-TX-0000" /></label>
+          {error && <div className="auth-error" role="alert"><span className="material-symbols-outlined">error</span>{error}</div>}
+          
+          <label>Registration Number<input required value={form.registrationNumber} onChange={set('registrationNumber')} placeholder="KA-01-TX-2048" /></label>
           <label>Model<input required value={form.model} onChange={set('model')} placeholder="Volvo 9400 Intercity" /></label>
           <div className="drawer-grid">
-            <label>Vehicle Type<select value={form.type} onChange={set('type')}>{VEHICLE_TYPES.slice(1).map(item => <option key={item}>{item}</option>)}</select></label>
-            <label>Status<select value={form.status} onChange={set('status')}>{STATUSES.slice(1).map(item => <option key={item}>{item}</option>)}</select></label>
+            <label>Type<select value={form.type} onChange={set('type')}>{VEHICLE_TYPES.slice(1).map(t => <option key={t}>{t}</option>)}</select></label>
+            <label>Status<select value={form.status} onChange={set('status')}>{STATUSES.slice(1).map(s => <option key={s}>{s}</option>)}</select></label>
           </div>
-          <label>Capacity<input required value={form.capacity} onChange={set('capacity')} placeholder="52 seats / 16 tons" /></label>
-          <label>Current Driver<input required value={form.driver} onChange={set('driver')} placeholder="Driver name" /></label>
-          <label>Fuel Level <span>{form.fuel}%</span><input className="range" type="range" min="0" max="100" value={form.fuel} onChange={set('fuel')} /></label>
-          <div className="drawer-actions"><button type="button" className="transit-btn" onClick={onClose}>Cancel</button><button type="submit" className="transit-btn transit-btn-primary"><span className="material-symbols-outlined">add</span>Add Vehicle</button></div>
+          <label>Capacity<input required value={form.capacity} onChange={set('capacity')} placeholder="52 seats or 32 tons" /></label>
+          <label>Assigned Driver<input value={form.assignedDriver} onChange={set('assignedDriver')} placeholder="Driver name (optional)" /></label>
+          <label>Fuel Level: <span>{form.fuelLevel}%</span><input type="range" min="0" max="100" className="range" value={form.fuelLevel} onChange={set('fuelLevel')} /></label>
+          
+          <div className="drawer-actions">
+            <button type="button" className="transit-btn" onClick={onClose}>Cancel</button>
+            <button type="submit" className="transit-btn transit-btn-primary" disabled={loading}>
+              <span className="material-symbols-outlined">add_road</span>
+              {loading ? 'Adding...' : 'Add Vehicle'}
+            </button>
+          </div>
         </form>
       </aside>
     </div>
@@ -78,44 +93,137 @@ function AddVehicleDrawer({ open, onClose, onAdd }) {
 }
 
 const VehicleRegistry = () => {
-  const [vehicles, setVehicles] = useState(INITIAL_VEHICLES);
-  const [query, setQuery] = useState('');
+  const [vehicles, setVehicles] = useState([]);
+  const [search, setSearch] = useState('');
   const [type, setType] = useState('All Types');
   const [status, setStatus] = useState('All Status');
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [page, setPage] = useState(1);
-  const pageSize = 6;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const filteredVehicles = useMemo(() => vehicles.filter(vehicle => {
-    const haystack = (vehicle.reg + ' ' + vehicle.model + ' ' + vehicle.type + ' ' + vehicle.driver).toLowerCase();
-    return haystack.includes(query.toLowerCase()) && (type === 'All Types' || vehicle.type === type) && (status === 'All Status' || vehicle.status === status);
-  }), [query, status, type, vehicles]);
+  // Fetch vehicles on mount
+  useEffect(() => {
+    loadVehicles();
+  }, []);
 
-  const pageCount = Math.max(1, Math.ceil(filteredVehicles.length / pageSize));
-  const visibleVehicles = filteredVehicles.slice((page - 1) * pageSize, page * pageSize);
-  const updateFilter = setter => event => { setter(event.target.value); setPage(1); };
-  const addVehicle = vehicle => { setVehicles(prev => [{ ...vehicle, id: Date.now() }, ...prev]); setDrawerOpen(false); setPage(1); };
+  const loadVehicles = async () => {
+    try {
+      setLoading(true);
+      const data = await vehiclesAPI.getAll();
+      setVehicles(data);
+    } catch (err) {
+      const errorMessage = err.response?.data?.error || 'Failed to load vehicles';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredVehicles = useMemo(() => vehicles.filter(v => {
+    const query = search.trim().toLowerCase();
+    const matchesQuery = !query || [v.registrationNumber, v.model, v.type, v.assignedDriver, v.capacity].some(value => String(value).toLowerCase().includes(query));
+    const matchesType = type === 'All Types' || v.type === type;
+    const matchesStatus = status === 'All Status' || v.status === status;
+    return matchesQuery && matchesType && matchesStatus;
+  }), [vehicles, search, type, status]);
+
+  const handleAdd = (newVehicle) => {
+    setVehicles(prev => [newVehicle, ...prev]);
+    setDrawerOpen(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this vehicle? This action cannot be undone.')) return;
+    
+    try {
+      await vehiclesAPI.delete(id);
+      setVehicles(prev => prev.filter(v => v._id !== id));
+    } catch (err) {
+      const errorMessage = err.response?.data?.error || 'Failed to delete vehicle';
+      alert(errorMessage);
+    }
+  };
 
   return (
-    <Layout title="Vehicle Registry">
-      <div className="vehicle-registry max-w-[1480px] mx-auto space-y-5">
-        <section className="vehicle-toolbar transit-panel">
-          <div className="vehicle-title-block"><p className="transit-eyebrow">Fleet Control</p><h1>Vehicle Registry</h1><span>{vehicles.length} vehicles tracked across the TransitOps network</span></div>
+    <Layout>
+      <main className="transit-shell-main space-y-lg">
+        <section className="transit-panel vehicle-toolbar">
+          <div className="vehicle-title-block">
+            <p className="transit-eyebrow">Fleet Registry</p>
+            <h1>Vehicle Registry</h1>
+            <span>Register, monitor, and track every vehicle in your transport network from a unified registry interface.</span>
+          </div>
           <div className="vehicle-controls">
-            <div className="vehicle-search"><span className="material-symbols-outlined">search</span><input value={query} onChange={updateFilter(setQuery)} placeholder="Search registration, model, driver..." /></div>
-            <button className="transit-btn"><span className="material-symbols-outlined">filter_list</span>Filters</button>
-            <select value={type} onChange={updateFilter(setType)}>{VEHICLE_TYPES.map(item => <option key={item}>{item}</option>)}</select>
-            <select value={status} onChange={updateFilter(setStatus)}>{STATUSES.map(item => <option key={item}>{item}</option>)}</select>
-            <button className="transit-btn"><span className="material-symbols-outlined">download</span>Export</button>
-            <button className="transit-btn transit-btn-primary" onClick={() => setDrawerOpen(true)}><span className="material-symbols-outlined">add</span>Add Vehicle</button>
+            <button type="button" className="transit-btn transit-btn-primary" onClick={() => setDrawerOpen(true)}>
+              <span className="material-symbols-outlined">add_road</span>Add Vehicle
+            </button>
+            <label className="vehicle-search" aria-label="Search vehicles">
+              <span className="material-symbols-outlined">search</span>
+              <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search reg, model, driver" />
+            </label>
+            <select value={type} onChange={event => setType(event.target.value)} aria-label="Vehicle type filter">
+              {VEHICLE_TYPES.map(t => <option key={t}>{t}</option>)}
+            </select>
+            <select value={status} onChange={event => setStatus(event.target.value)} aria-label="Status filter">
+              {STATUSES.map(s => <option key={s}>{s}</option>)}
+            </select>
           </div>
         </section>
-        <section className="vehicle-table-card transit-panel">
-          {visibleVehicles.length === 0 ? <EmptyState /> : <div className="vehicle-table-wrap"><table className="vehicle-table"><thead><tr><th>Vehicle</th><th>Registration Number</th><th>Model</th><th>Vehicle Type</th><th>Capacity</th><th>Current Driver</th><th>Fuel Level</th><th>Status</th><th>Actions</th></tr></thead><tbody>{visibleVehicles.map(vehicle => <tr key={vehicle.id}><td><div className="vehicle-avatar"><span className="material-symbols-outlined">{typeIcons[vehicle.type]}</span></div></td><td><strong className="reg-number">{vehicle.reg}</strong></td><td>{vehicle.model}</td><td><span className="type-pill">{vehicle.type}</span></td><td>{vehicle.capacity}</td><td><div className="driver-cell"><span>{vehicle.driver.split(' ').map(part => part[0]).join('').slice(0, 2)}</span>{vehicle.driver}</div></td><td><FuelLevel value={vehicle.fuel} /></td><td><StatusBadge status={vehicle.status} /></td><td><div className="row-actions"><button aria-label={'View ' + vehicle.reg}><span className="material-symbols-outlined">visibility</span></button><button aria-label={'Edit ' + vehicle.reg}><span className="material-symbols-outlined">edit</span></button><button aria-label={'More actions for ' + vehicle.reg}><span className="material-symbols-outlined">more_horiz</span></button></div></td></tr>)}</tbody></table></div>}
-          <div className="vehicle-pagination"><p>Showing <strong>{visibleVehicles.length}</strong> of <strong>{filteredVehicles.length}</strong> vehicles</p><div><button className="transit-btn" disabled={page === 1} onClick={() => setPage(value => Math.max(1, value - 1))}>Previous</button><span>Page {page} of {pageCount}</span><button className="transit-btn" disabled={page === pageCount} onClick={() => setPage(value => Math.min(pageCount, value + 1))}>Next</button></div></div>
+
+        {error && <div className="auth-error" role="alert"><span className="material-symbols-outlined">error</span>{error}</div>}
+
+        <section className="transit-panel vehicle-table-card">
+          <div className="vehicle-table-wrap">
+            {loading ? (
+              <div style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
+                <p>Loading vehicles...</p>
+              </div>
+            ) : (
+              <table className="vehicle-table">
+                <thead>
+                  <tr>
+                    <th>Icon</th>
+                    <th>Registration Number</th>
+                    <th>Vehicle Model</th>
+                    <th>Type</th>
+                    <th>Capacity</th>
+                    <th>Assigned Driver</th>
+                    <th>Fuel Level</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredVehicles.map(vehicle => (
+                    <tr key={vehicle._id}>
+                      <td><div className="vehicle-avatar"><span className="material-symbols-outlined">{typeIcons[vehicle.type] || 'commute'}</span></div></td>
+                      <td><span className="reg-number">{vehicle.registrationNumber}</span></td>
+                      <td>{vehicle.model}</td>
+                      <td><span className="type-pill">{vehicle.type}</span></td>
+                      <td>{vehicle.capacity}</td>
+                      <td><div className="driver-cell">{vehicle.assignedDriver ? <><span>{vehicle.assignedDriver.split(' ').map(p => p[0]).join('').slice(0, 2)}</span>{vehicle.assignedDriver}</> : <span style={{color: '#94a3b8'}}>Unassigned</span>}</div></td>
+                      <td><FuelLevel value={vehicle.fuelLevel || 0} /></td>
+                      <td><StatusBadge status={vehicle.status} /></td>
+                      <td>
+                        <div className="row-actions">
+                          <button type="button" aria-label="View details"><span className="material-symbols-outlined">visibility</span></button>
+                          <button type="button" onClick={() => handleDelete(vehicle._id)} aria-label="Delete"><span className="material-symbols-outlined">delete</span></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          {!loading && filteredVehicles.length === 0 && <EmptyState />}
+          <div className="vehicle-pagination">
+            <p>Showing <strong>{filteredVehicles.length}</strong> of <strong>{vehicles.length}</strong> vehicles</p>
+            <div><button className="transit-btn" disabled>Previous</button><span>Page 1 of 1</span><button className="transit-btn" disabled>Next</button></div>
+          </div>
         </section>
-      </div>
-      <AddVehicleDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onAdd={addVehicle} />
+      </main>
+      <AddVehicleDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onAdd={handleAdd} />
     </Layout>
   );
 };

@@ -137,8 +137,8 @@ function CreateTripDrawer({ open, onClose, onAdd }) {
     setForm({ source: '', destination: '', vehicle: '', vehicleType: 'Truck', driver: '', cargo: '', distance: 120, status: 'Draft' });
   };
   return (
-    <div className="drawer-backdrop" role="presentation" onMouseDown={onClose}>
-      <aside className="vehicle-drawer" role="dialog" aria-modal="true" aria-label="Create trip" onMouseDown={event => event.stopPropagation()}>
+    <div className="drawer-backdrop" role="presentation" onMouseDown={onClose} style={{ justifyContent: 'center', alignItems: 'center' }}>
+      <aside className="vehicle-drawer" role="dialog" aria-modal="true" aria-label="Create trip" onMouseDown={event => event.stopPropagation()} style={{ maxHeight: '90vh', borderRadius: '16px', border: '1px solid rgba(148,163,184,.16)' }}>
         <div className="drawer-head"><div><p className="transit-kicker">Trip Planning</p><h2>Create Trip</h2></div><button type="button" onClick={onClose} aria-label="Close drawer"><span className="material-symbols-outlined">close</span></button></div>
         <form onSubmit={submit} className="drawer-form">
           <label>Source<input required value={form.source} onChange={set('source')} placeholder="Origin depot" /></label>
