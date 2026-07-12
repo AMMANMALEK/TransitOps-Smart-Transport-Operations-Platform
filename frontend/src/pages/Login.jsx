@@ -218,7 +218,6 @@ export default function Login() {
         }
         .auth-visual-panel {
           position: relative;
-          overflow: hidden;
           min-height: 100vh;
           background:
             linear-gradient(135deg, rgba(8, 13, 23, .76), rgba(8, 13, 23, .92)),
@@ -238,8 +237,9 @@ export default function Login() {
           z-index: 1;
           min-height: 100vh;
           padding: 40px;
-          display: grid;
-          grid-template-rows: auto auto 1fr auto;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
           gap: 28px;
         }
         .auth-logo { display: flex; align-items: center; gap: 14px; }
@@ -276,6 +276,7 @@ export default function Login() {
         .logistics-scene {
           position: relative;
           align-self: center;
+          margin: auto 0;
           width: min(760px, 100%);
           min-height: 330px;
           border-radius: 28px;
