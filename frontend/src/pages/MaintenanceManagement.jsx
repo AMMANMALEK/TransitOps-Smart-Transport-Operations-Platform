@@ -1,26 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-
-const VEHICLES = [
-  { id: 'KA-01-TX-2048', label: 'KA-01-TX-2048 - Volvo 9400', unavailable: false },
-  { id: 'MH-12-FL-7781', label: 'MH-12-FL-7781 - Tata Prima', unavailable: false },
-  { id: 'DL-09-UR-1188', label: 'DL-09-UR-1188 - Ashok Leyland', unavailable: true },
-  { id: 'TN-22-LG-0432', label: 'TN-22-LG-0432 - Force Traveller', unavailable: true },
-  { id: 'GJ-05-RT-3904', label: 'GJ-05-RT-3904 - Eicher Pro', unavailable: false },
-  { id: 'RJ-14-DR-5520', label: 'RJ-14-DR-5520 - Tata Winger', unavailable: true },
-];
+import { maintenanceAPI } from '../api/maintenance';
+import { vehiclesAPI } from '../api/vehicles';
 
 const TYPES = ['Preventive Service', 'Engine Inspection', 'Brake System', 'Tyre Replacement', 'Electrical Repair', 'Body Work'];
 const PRIORITIES = ['Low', 'Medium', 'High', 'Critical'];
-const TECHNICIANS = ['Priya Nambiar', 'Aarav Kulkarni', 'Sofia Khan', 'Nikhil Verma', 'Mira Joseph'];
-const STATUSES = ['Scheduled', 'In Progress', 'Completed'];
-
-const INITIAL_HISTORY = [
-  { id: 'MNT-8841', vehicle: 'DL-09-UR-1188', type: 'Brake System', priority: 'Critical', technician: 'Priya Nambiar', cost: 48500, status: 'In Progress', date: 'Jul 12, 2026', notes: 'ABS module replacement and route safety validation required before release.' },
-  { id: 'MNT-8840', vehicle: 'TN-22-LG-0432', type: 'Preventive Service', priority: 'High', technician: 'Aarav Kulkarni', cost: 18200, status: 'Scheduled', date: 'Jul 13, 2026', notes: 'Scheduled service window before Kochi route reassignment.' },
-  { id: 'MNT-8839', vehicle: 'KA-01-TX-2048', type: 'Engine Inspection', priority: 'Medium', technician: 'Sofia Khan', cost: 26400, status: 'Completed', date: 'Jul 10, 2026', notes: 'Oil pressure issue resolved; vehicle cleared for dispatch.' },
-  { id: 'MNT-8838', vehicle: 'RJ-14-DR-5520', type: 'Electrical Repair', priority: 'High', technician: 'Nikhil Verma', cost: 22100, status: 'In Progress', date: 'Jul 12, 2026', notes: 'Telematics unit offline; vehicle held from active trips.' },
-];
 
 const priorityConfig = {
   Low: { cls: 'maintenance-badge low', icon: 'low_priority' },
@@ -30,16 +14,18 @@ const priorityConfig = {
 };
 
 const statusConfig = {
-  Scheduled: { cls: 'maintenance-badge scheduled', icon: 'event' },
-  'In Progress': { cls: 'maintenance-badge progress', icon: 'engineering' },
-  Completed: { cls: 'maintenance-badge completed', icon: 'task_alt' },
+  Active: { cls: 'maintenance-badge progress', icon: 'engineering', label: 'In Progress' },
+  Closed: { cls: 'maintenance-badge completed', icon: 'task_alt', label: 'Completed' },
 };
 
 function Badge({ value, type = 'status' }) {
-  const cfg = type === 'priority' ? priorityConfig[value] : statusConfig[value];
-  const fallback = type === 'priority' ? priorityConfig.Medium : statusConfig.Scheduled;
-  const active = cfg || fallback;
-  return <span className={active.cls}><span className="material-symbols-outlined">{active.icon}</span>{value}</span>;
+  if (type === 'priority') {
+    const cfg = priorityConfig[value] || priorityConfig.Medium;
+    return <span className={cfg.cls}><span className="material-symbols-outlined">{cfg.icon}</span>{value}</span>;
+  } else {
+    const cfg = statusConfig[value] || statusConfig.Active;
+    return <span className={cfg.cls}><span className="material-symbols-outlined">{cfg.icon}</span>{cfg.label}</span>;
+  }
 }
 
 function formatCurrency(value) {
@@ -48,11 +34,14 @@ function formatCurrency(value) {
 
 function MaintenanceTimeline({ status }) {
   const steps = ['Scheduled', 'In Progress', 'Completed'];
-  const activeIndex = steps.indexOf(status);
+  let activeIndex = 1; // Active corresponds to In Progress
+  if (status === 'Closed') {
+    activeIndex = 2; // Completed
+  }
   return (
     <div className="maintenance-timeline" aria-label="Maintenance timeline">
       {steps.map((step, index) => {
-        const done = index < activeIndex || status === 'Completed';
+        const done = index < activeIndex || status === 'Closed';
         const active = index === activeIndex;
         return <div key={step} className={'maintenance-step ' + (done ? 'done ' : '') + (active ? 'active' : '')}>
           <span className="maintenance-step-dot"><span className="material-symbols-outlined">{done ? 'check' : active ? 'radio_button_checked' : 'radio_button_unchecked'}</span></span>
@@ -63,27 +52,93 @@ function MaintenanceTimeline({ status }) {
   );
 }
 
-function VehiclePill({ vehicle }) {
-  const info = VEHICLES.find(item => item.id === vehicle);
-  const unavailable = info?.unavailable;
-  return <span className={'maintenance-vehicle-pill ' + (unavailable ? 'unavailable' : '')}><span className="material-symbols-outlined">{unavailable ? 'no_transfer' : 'directions_bus'}</span>{vehicle}</span>;
+function VehiclePill({ registrationNumber, status }) {
+  const isUnavailable = status === 'In Shop' || status === 'Retired';
+  return <span className={'maintenance-vehicle-pill ' + (isUnavailable ? 'unavailable' : '')}><span className="material-symbols-outlined">{isUnavailable ? 'no_transfer' : 'directions_bus'}</span>{registrationNumber}</span>;
 }
 
 const MaintenanceManagement = () => {
-  const [history, setHistory] = useState(INITIAL_HISTORY);
-  const [selected, setSelected] = useState(INITIAL_HISTORY[0]);
-  const [form, setForm] = useState({ vehicle: 'DL-09-UR-1188', type: 'Brake System', priority: 'High', technician: 'Priya Nambiar', cost: 32000, status: 'Scheduled', notes: '' });
+  const [logs, setLogs] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  
+  const [selected, setSelected] = useState(null);
+  const [form, setForm] = useState({ vehicleId: '', type: 'Preventive Service', priority: 'Medium', cost: 15000, startDate: new Date().toISOString().split('T')[0], notes: '' });
 
-  const unavailableVehicles = useMemo(() => VEHICLES.filter(vehicle => vehicle.unavailable), []);
-  const activeStatus = selected?.status || form.status;
+  const unavailableVehicles = useMemo(() => vehicles.filter(v => v.status === 'In Shop'), [vehicles]);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [logsResponse, vehiclesResponse] = await Promise.all([
+        maintenanceAPI.getAll(),
+        vehiclesAPI.getAll()
+      ]);
+      const fetchedLogs = logsResponse.logs || [];
+      setLogs(fetchedLogs);
+      setVehicles(vehiclesResponse);
+      
+      // Auto select first log if available
+      if (fetchedLogs.length > 0) {
+        setSelected(fetchedLogs[0]);
+      }
+      
+      // Set default vehicle in form if available
+      if (vehiclesResponse.length > 0) {
+        setForm(prev => ({ ...prev, vehicleId: vehiclesResponse[0]._id }));
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load maintenance operations');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const set = field => event => setForm(prev => ({ ...prev, [field]: field === 'cost' ? Number(event.target.value) : event.target.value }));
-  const submit = event => {
+  
+  const submit = async event => {
     event.preventDefault();
-    const record = { ...form, id: 'MNT-' + Date.now().toString().slice(-4), date: 'Jul 12, 2026', notes: form.notes || 'Maintenance record created from operations console.' };
-    setHistory(prev => [record, ...prev]);
-    setSelected(record);
-    setForm(prev => ({ ...prev, notes: '', cost: 32000, status: 'Scheduled' }));
+    setError('');
+    
+    if (!form.vehicleId) {
+      alert('Please select a vehicle');
+      return;
+    }
+
+    try {
+      const description = `${form.type}${form.notes ? ': ' + form.notes : ''}`;
+      const payload = {
+        vehicleId: form.vehicleId,
+        description,
+        cost: form.cost,
+        startDate: form.startDate,
+        priority: form.priority // frontend specific
+      };
+      
+      const response = await maintenanceAPI.create(payload);
+      alert('Maintenance work order scheduled successfully!');
+      
+      setForm(prev => ({ ...prev, notes: '', cost: 15000 }));
+      loadData(); // reload records
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to schedule maintenance');
+    }
+  };
+
+  const handleCloseMaintenance = async (id) => {
+    if (!confirm('Are you sure you want to close this work order and release the vehicle?')) return;
+    try {
+      await maintenanceAPI.close(id, { endDate: new Date().toISOString() });
+      alert('Maintenance closed successfully. Vehicle status restored!');
+      loadData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to close maintenance');
+    }
   };
 
   return (
@@ -97,46 +152,126 @@ const MaintenanceManagement = () => {
           </div>
           <div className="maintenance-unavailable-strip">
             <span className="material-symbols-outlined">no_transfer</span>
-            <div><strong>{unavailableVehicles.length} vehicles unavailable</strong><p>{unavailableVehicles.map(vehicle => vehicle.id).join('  |  ')}</p></div>
+            <div>
+              <strong>{unavailableVehicles.length} vehicles currently in shop</strong>
+              <p>{unavailableVehicles.map(v => v.registrationNumber).join('  |  ') || 'None'}</p>
+            </div>
           </div>
         </section>
 
-        <section className="maintenance-grid">
-          <form className="transit-panel maintenance-form" onSubmit={submit}>
-            <div className="maintenance-panel-head"><div><p className="transit-kicker">Work Order</p><h2>Vehicle Maintenance Form</h2></div><Badge value={form.priority} type="priority" /></div>
-            <label>Vehicle<select value={form.vehicle} onChange={set('vehicle')}>{VEHICLES.map(vehicle => <option key={vehicle.id} value={vehicle.id}>{vehicle.label}{vehicle.unavailable ? ' - unavailable' : ''}</option>)}</select></label>
-            <div className="maintenance-form-row"><label>Maintenance Type<select value={form.type} onChange={set('type')}>{TYPES.map(item => <option key={item}>{item}</option>)}</select></label><label>Priority<select value={form.priority} onChange={set('priority')}>{PRIORITIES.map(item => <option key={item}>{item}</option>)}</select></label></div>
-            <div className="maintenance-form-row"><label>Technician<select value={form.technician} onChange={set('technician')}>{TECHNICIANS.map(item => <option key={item}>{item}</option>)}</select></label><label>Estimated Cost<input type="number" min="0" value={form.cost} onChange={set('cost')} /></label></div>
-            <label>Status<select value={form.status} onChange={set('status')}>{STATUSES.map(item => <option key={item}>{item}</option>)}</select></label>
-            <label>Notes<textarea value={form.notes} onChange={set('notes')} placeholder="Add service bay notes, replacement parts, release checks, or approval details." rows="4" /></label>
-            <div className="maintenance-form-summary"><VehiclePill vehicle={form.vehicle} /><strong>{formatCurrency(form.cost)}</strong></div>
-            <div className="drawer-actions"><button type="button" className="transit-btn" onClick={() => setForm({ vehicle: 'DL-09-UR-1188', type: 'Brake System', priority: 'High', technician: 'Priya Nambiar', cost: 32000, status: 'Scheduled', notes: '' })}>Reset</button><button type="submit" className="transit-btn transit-btn-primary"><span className="material-symbols-outlined">add_task</span>Save Work Order</button></div>
-          </form>
+        {error && <div className="auth-error" role="alert"><span className="material-symbols-outlined">error</span>{error}</div>}
 
-          <aside className="transit-panel maintenance-timeline-panel">
-            <div className="maintenance-panel-head"><div><p className="transit-kicker">Service Progress</p><h2>Maintenance Timeline</h2></div><Badge value={activeStatus} /></div>
-            <MaintenanceTimeline status={activeStatus} />
-            {selected && <div className="maintenance-selected-card">
-              <VehiclePill vehicle={selected.vehicle} />
-              <h3>{selected.type}</h3>
-              <p>{selected.notes}</p>
-              <div className="maintenance-meta-grid"><div><span>Technician</span><strong>{selected.technician}</strong></div><div><span>Estimated Cost</span><strong>{formatCurrency(selected.cost)}</strong></div><div><span>Priority</span><Badge value={selected.priority} type="priority" /></div><div><span>Status</span><Badge value={selected.status} /></div></div>
-            </div>}
-          </aside>
-        </section>
+        {loading ? (
+          <section className="transit-panel" style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
+            <p>Loading maintenance operations...</p>
+          </section>
+        ) : (
+          <section className="maintenance-grid">
+            <form className="transit-panel maintenance-form" onSubmit={submit}>
+              <div className="maintenance-panel-head"><div><p className="transit-kicker">Work Order</p><h2>Vehicle Maintenance Form</h2></div><Badge value={form.priority} type="priority" /></div>
+              
+              <label>Vehicle
+                <select value={form.vehicleId} onChange={set('vehicleId')}>
+                  {vehicles.map(v => (
+                    <option key={v._id} value={v._id}>
+                      {v.registrationNumber} - {v.name} ({v.status})
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="maintenance-form-row">
+                <label>Maintenance Type
+                  <select value={form.type} onChange={set('type')}>
+                    {TYPES.map(item => <option key={item}>{item}</option>)}
+                  </select>
+                </label>
+                <label>Priority
+                  <select value={form.priority} onChange={set('priority')}>
+                    {PRIORITIES.map(item => <option key={item}>{item}</option>)}
+                  </select>
+                </label>
+              </div>
+
+              <div className="maintenance-form-row">
+                <label>Start Date
+                  <input type="date" required value={form.startDate} onChange={set('startDate')} />
+                </label>
+                <label>Estimated Cost (INR)
+                  <input type="number" min="0" value={form.cost} onChange={set('cost')} />
+                </label>
+              </div>
+
+              <label>Notes
+                <textarea value={form.notes} onChange={set('notes')} placeholder="Add service bay notes, replacement parts, release checks, or approval details." rows="4" />
+              </label>
+              
+              <div className="maintenance-form-summary">
+                {form.vehicleId && (
+                  <VehiclePill 
+                    registrationNumber={vehicles.find(v => v._id === form.vehicleId)?.registrationNumber} 
+                    status={vehicles.find(v => v._id === form.vehicleId)?.status} 
+                  />
+                )}
+                <strong>{formatCurrency(form.cost)}</strong>
+              </div>
+
+              <div className="drawer-actions">
+                <button type="button" className="transit-btn" onClick={() => setForm(prev => ({ ...prev, notes: '', cost: 15000 }))}>Reset</button>
+                <button type="submit" className="transit-btn transit-btn-primary"><span className="material-symbols-outlined">add_task</span>Save Work Order</button>
+              </div>
+            </form>
+
+            <aside className="transit-panel maintenance-timeline-panel">
+              <div className="maintenance-panel-head"><div><p className="transit-kicker">Service Progress</p><h2>Maintenance Timeline</h2></div>{selected && <Badge value={selected.status} />}</div>
+              {selected && <MaintenanceTimeline status={selected.status} />}
+              {selected && (
+                <div className="maintenance-selected-card">
+                  <VehiclePill registrationNumber={selected.vehicleId?.registrationNumber} status={selected.vehicleId?.status} />
+                  <h3>{selected.description.split(':')[0]}</h3>
+                  <p>{selected.description.split(':').slice(1).join(':').trim() || 'No notes provided.'}</p>
+                  
+                  <div className="maintenance-meta-grid">
+                    <div><span>Start Date</span><strong>{new Date(selected.startDate).toLocaleDateString('en-IN')}</strong></div>
+                    <div><span>End Date</span><strong>{selected.endDate ? new Date(selected.endDate).toLocaleDateString('en-IN') : 'Ongoing'}</strong></div>
+                    <div><span>Cost Charged</span><strong>{formatCurrency(selected.cost)}</strong></div>
+                    <div><span>Status</span><Badge value={selected.status} /></div>
+                  </div>
+
+                  {selected.status === 'Active' && (
+                    <div className="driver-panel-actions" style={{ marginTop: '16px', justifyContent: 'flex-end' }}>
+                      <button type="button" className="transit-btn transit-btn-primary" onClick={() => handleCloseMaintenance(selected._id)}>
+                        <span className="material-symbols-outlined">verified</span>Close &amp; Release Vehicle
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </aside>
+          </section>
+        )}
 
         <section className="maintenance-history-section">
-          <div className="driver-table-head"><div><p className="transit-kicker">Maintenance History</p><h2>Recent Work Orders</h2></div><span>{history.length} records</span></div>
+          <div className="driver-table-head"><div><p className="transit-kicker">Maintenance History</p><h2>Recent Work Orders</h2></div><span>{logs.length} records</span></div>
           <div className="maintenance-history-grid">
-            {history.map(record => {
-              const unavailable = VEHICLES.find(vehicle => vehicle.id === record.vehicle)?.unavailable || record.status !== 'Completed';
-              return <button key={record.id} type="button" className={'maintenance-history-card ' + (unavailable ? 'unavailable' : '')} onClick={() => setSelected(record)}>
-                <div className="maintenance-card-top"><VehiclePill vehicle={record.vehicle} /><Badge value={record.status} /></div>
-                <h3>{record.type}</h3>
-                <p>{record.notes}</p>
-                <div className="maintenance-card-bottom"><span>{record.id}</span><span>{record.date}</span><Badge value={record.priority} type="priority" /><strong>{formatCurrency(record.cost)}</strong></div>
-                {unavailable && <div className="maintenance-unavailable-note"><span className="material-symbols-outlined">warning</span>Vehicle unavailable for dispatch</div>}
-              </button>;
+            {logs.map(record => {
+              const unavailable = record.status === 'Active';
+              return (
+                <button key={record._id} type="button" className={'maintenance-history-card ' + (unavailable ? 'unavailable' : '')} onClick={() => setSelected(record)}>
+                  <div className="maintenance-card-top">
+                    <VehiclePill registrationNumber={record.vehicleId?.registrationNumber} status={record.vehicleId?.status} />
+                    <Badge value={record.status} />
+                  </div>
+                  <h3>{record.description.split(':')[0]}</h3>
+                  <p>{record.description.split(':').slice(1).join(':').trim() || 'No notes.'}</p>
+                  <div className="maintenance-card-bottom">
+                    <span>{record._id.slice(-6).toUpperCase()}</span>
+                    <span>{new Date(record.startDate).toLocaleDateString('en-IN')}</span>
+                    <strong>{formatCurrency(record.cost)}</strong>
+                  </div>
+                  {unavailable && <div className="maintenance-unavailable-note"><span className="material-symbols-outlined">warning</span>Vehicle in shop (unavailable)</div>}
+                </button>
+              );
             })}
           </div>
         </section>

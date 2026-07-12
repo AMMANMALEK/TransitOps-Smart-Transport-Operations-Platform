@@ -1,26 +1,8 @@
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-
-// ─── Data ───────────────────────────────────────────────────────────────────
-const kpis = [
-  { label: 'Active Vehicles', value: '284', sub: '196 available', icon: 'directions_bus', tone: 'blue' },
-  { label: 'Active Trips', value: '148', sub: '27 pending', icon: 'route', tone: 'green' },
-  { label: 'Fleet Utilization', value: '82%', sub: '+6.3% vs yesterday', icon: 'monitoring', tone: 'amber' },
-  { label: 'In Maintenance', value: '32', sub: '3 due today', icon: 'build_circle', tone: 'red' },
-];
-
-const trips = [
-  { id: 'TRP-2048', route: 'Airport Express', vehicle: 'BUS-1142', driver: 'Anika Rao', eta: '12 min', status: 'On Time' },
-  { id: 'TRP-2047', route: 'West Freight Link', vehicle: 'TRK-0871', driver: 'Dev Mehta', eta: '28 min', status: 'Delayed' },
-  { id: 'TRP-2046', route: 'Central Loop', vehicle: 'BUS-1039', driver: 'Farah Khan', eta: 'Arrived', status: 'Complete' },
-  { id: 'TRP-2045', route: 'North Depot Feeder', vehicle: 'VAN-0432', driver: 'Rohan Iyer', eta: '19 min', status: 'On Time' },
-];
-
-const alerts = [
-  { icon: 'warning', title: 'Route congestion detected', detail: 'West Freight Link avg. speed down 18%.', tone: 'amber' },
-  { icon: 'tire_repair', title: 'Maintenance threshold reached', detail: 'BUS-1188 due for brake inspection.', tone: 'red' },
-  { icon: 'check_circle', title: 'Depot dispatch normalized', detail: 'Central Depot queue back under SLA.', tone: 'green' },
-];
+import { reportsAPI } from '../api/reports';
+import { tripsAPI } from '../api/trips';
 
 const tones = {
   amber: { color: '#d97706', bg: 'rgba(245,158,11,0.15)' },
@@ -29,7 +11,6 @@ const tones = {
   red:   { color: '#dc2626', bg: 'rgba(239,68,68,0.12)' },
 };
 
-// ─── KPI Card ────────────────────────────────────────────────────────────────
 function KpiCard({ item }) {
   const tone = tones[item.tone];
   return (
@@ -46,25 +27,110 @@ function KpiCard({ item }) {
   );
 }
 
-// ─── Status Badge ────────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
-  const map = { 'On Time': 'badge badge-active', Complete: 'badge badge-approved', Delayed: 'badge badge-overdue' };
+  const map = { 
+    Draft: 'badge badge-draft', 
+    Dispatched: 'badge badge-active', 
+    Completed: 'badge badge-approved', 
+    Cancelled: 'badge badge-overdue' 
+  };
   return <span className={map[status] || 'badge badge-draft'}>{status}</span>;
 }
 
-// ─── Dashboard ───────────────────────────────────────────────────────────────
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [stats, setStats] = useState(null);
+  const [recentTrips, setRecentTrips] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true);
+        const [statsData, tripsResponse] = await Promise.all([
+          reportsAPI.getDashboard(),
+          tripsAPI.getAll()
+        ]);
+        setStats(statsData);
+        setRecentTrips((tripsResponse.trips || []).slice(0, 5));
+      } catch (err) {
+        setError(err.response?.data?.error || 'Failed to load dashboard stats');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDashboardData();
+  }, []);
+
+  const kpis = useMemo(() => {
+    return [
+      { 
+        label: 'Active Vehicles', 
+        value: stats?.activeVehicles ?? '0', 
+        sub: `${stats?.availableVehicles ?? '0'} available`, 
+        icon: 'directions_bus', 
+        tone: 'blue' 
+      },
+      { 
+        label: 'Active Trips', 
+        value: stats?.activeTrips ?? '0', 
+        sub: `${stats?.pendingTrips ?? '0'} pending dispatches`, 
+        icon: 'route', 
+        tone: 'green' 
+      },
+      { 
+        label: 'Fleet Utilization', 
+        value: `${stats?.fleetUtilization ?? '0'}%`, 
+        sub: `${stats?.meta?.nonRetiredVehicles ?? '0'} active fleet`, 
+        icon: 'monitoring', 
+        tone: 'amber' 
+      },
+      { 
+        label: 'In Maintenance', 
+        value: stats?.vehiclesInMaintenance ?? '0', 
+        sub: 'Currently in shop', 
+        icon: 'build_circle', 
+        tone: 'red' 
+      },
+    ];
+  }, [stats]);
+
+  const alerts = useMemo(() => {
+    const list = [];
+    if (stats?.vehiclesInMaintenance > 0) {
+      list.push({
+        icon: 'build_circle',
+        title: 'Vehicles in service bay',
+        detail: `${stats.vehiclesInMaintenance} vehicle(s) currently marked In Shop for active maintenance.`,
+        tone: 'red'
+      });
+    }
+    if (stats?.pendingTrips > 0) {
+      list.push({
+        icon: 'schedule',
+        title: 'Awaiting dispatches',
+        detail: `${stats.pendingTrips} trip(s) in Draft status ready for fleet coordination.`,
+        tone: 'amber'
+      });
+    }
+    list.push({
+      icon: 'check_circle',
+      title: 'Fleet health normalized',
+      detail: `Total registered roster: ${stats?.meta?.totalDrivers ?? 0} driver(s) and ${stats?.meta?.totalVehicles ?? 0} vehicle(s).`,
+      tone: 'green'
+    });
+    return list;
+  }, [stats]);
 
   return (
     <Layout title="Dashboard">
       <div className="db-root">
-
         {/* Hero */}
         <section className="db-hero transit-panel">
           <div>
             <p className="transit-eyebrow mb-2">Smart Transport Operations</p>
-            <h1 className="db-hero-title">Good Morning, Fleet Manager 👋</h1>
+            <h1 className="db-hero-title">Good Morning, Fleet Coordinator 👋</h1>
             <p className="db-hero-sub">Live operational picture — fleet, trips, utilization &amp; alerts.</p>
           </div>
           <div className="db-hero-actions">
@@ -74,64 +140,75 @@ const Dashboard = () => {
           </div>
         </section>
 
-        {/* KPI Row */}
-        <section className="db-kpi-row">
-          {kpis.map(item => <KpiCard key={item.label} item={item} />)}
-        </section>
+        {error && <div className="auth-error" role="alert" style={{ marginBottom: '24px' }}><span className="material-symbols-outlined">error</span>{error}</div>}
 
-        {/* Main content — 2 columns */}
-        <section className="db-grid">
-
-          {/* Recent Trips */}
-          <div className="transit-panel db-card">
-            <div className="db-card-head">
-              <div>
-                <h3>Recent Trips</h3>
-                <p>Latest high-priority movements</p>
-              </div>
-              <button className="transit-btn" onClick={() => navigate('/trips')}>View All</button>
-            </div>
-            <div className="db-trip-list">
-              {trips.map(trip => (
-                <div key={trip.id} className="db-trip-row">
-                  <div className="db-trip-icon">
-                    <span className="material-symbols-outlined">route</span>
-                  </div>
-                  <div className="db-trip-main">
-                    <strong>{trip.route}</strong>
-                    <span>{trip.vehicle} · {trip.driver}</span>
-                  </div>
-                  <div className="db-trip-meta">
-                    <span>{trip.eta}</span>
-                    <StatusBadge status={trip.status} />
-                  </div>
-                </div>
-              ))}
-            </div>
+        {loading ? (
+          <div style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
+            <p>Loading dashboard telemetry...</p>
           </div>
+        ) : (
+          <>
+            {/* KPI Row */}
+            <section className="db-kpi-row">
+              {kpis.map(item => <KpiCard key={item.label} item={item} />)}
+            </section>
 
-          {/* Alerts */}
-          <div className="transit-panel db-card">
-            <div className="db-card-head">
-              <div>
-                <h3>Alerts</h3>
-                <p>Actionable operational events</p>
-              </div>
-            </div>
-            <div className="db-alert-list">
-              {alerts.map(alert => (
-                <div key={alert.title} className={`db-alert ${alert.tone}`}>
-                  <span className="material-symbols-outlined">{alert.icon}</span>
+            {/* Main content — 2 columns */}
+            <section className="db-grid">
+              {/* Recent Trips */}
+              <div className="transit-panel db-card">
+                <div className="db-card-head">
                   <div>
-                    <strong>{alert.title}</strong>
-                    <p>{alert.detail}</p>
+                    <h3>Recent Trips</h3>
+                    <p>Latest high-priority movements</p>
+                  </div>
+                  <button className="transit-btn" onClick={() => navigate('/trips')}>View All</button>
+                </div>
+                <div className="db-trip-list">
+                  {recentTrips.map(trip => (
+                    <div key={trip._id} className="db-trip-row">
+                      <div className="db-trip-icon">
+                        <span className="material-symbols-outlined">route</span>
+                      </div>
+                      <div className="db-trip-main">
+                        <strong>{trip.source} to {trip.destination}</strong>
+                        <span>{trip.vehicleId?.registrationNumber || 'Unassigned'} · {trip.driverId?.name || 'Unassigned'}</span>
+                      </div>
+                      <div className="db-trip-meta">
+                        <span>{trip.plannedDistance} km</span>
+                        <StatusBadge status={trip.status} />
+                      </div>
+                    </div>
+                  ))}
+                  {recentTrips.length === 0 && (
+                    <p style={{ color: '#64748b', textAlign: 'center', padding: '32px 0' }}>No recent trips logged.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Alerts */}
+              <div className="transit-panel db-card">
+                <div className="db-card-head">
+                  <div>
+                    <h3>Alerts</h3>
+                    <p>Actionable operational events</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-        </section>
+                <div className="db-alert-list">
+                  {alerts.map(alert => (
+                    <div key={alert.title} className={`db-alert ${alert.tone}`}>
+                      <span className="material-symbols-outlined">{alert.icon}</span>
+                      <div>
+                        <strong>{alert.title}</strong>
+                        <p>{alert.detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          </>
+        )}
       </div>
 
       <style>{`

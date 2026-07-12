@@ -1,52 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Layout from '../components/Layout';
+import { tripsAPI } from '../api/trips';
+import { vehiclesAPI } from '../api/vehicles';
+import { driversAPI } from '../api/drivers';
 
-const TRIP_STEPS = ['Draft', 'Dispatched', 'On Route', 'Completed', 'Cancelled'];
-const VEHICLE_TYPES = ['All Vehicle Types', 'Truck', 'Bus', 'Van', 'Service'];
-const TRIP_STATUSES = ['All Status', 'Draft', 'Dispatched', 'On Route', 'Completed', 'Cancelled'];
-
-const INITIAL_TRIPS = [
-  { id: 'TRP-24081', source: 'Bengaluru North Depot', destination: 'Hyderabad Metro Hub', vehicle: 'KA-01-TX-2048', vehicleType: 'Truck', driver: 'Anika Rao', cargo: '18.4 tons', distance: 568, status: 'On Route', progress: 64, eta: 'Today, 18:40', checkpoints: [
-    { label: 'Trip drafted', place: 'Bengaluru North Depot', time: '08:10', state: 'done' },
-    { label: 'Vehicle dispatched', place: 'Nelamangala Gate', time: '09:05', state: 'done' },
-    { label: 'Checkpoint crossed', place: 'Kurnool Corridor', time: '14:35', state: 'active' },
-    { label: 'Arrival scan', place: 'Hyderabad Metro Hub', time: '18:40 ETA', state: 'pending' },
-  ] },
-  { id: 'TRP-24082', source: 'Pune Freight Hub', destination: 'Mumbai Port Terminal', vehicle: 'MH-12-FL-7781', vehicleType: 'Truck', driver: 'Dev Mehta', cargo: '24.1 tons', distance: 154, status: 'Dispatched', progress: 28, eta: 'Today, 15:20', checkpoints: [
-    { label: 'Trip drafted', place: 'Pune Freight Hub', time: '10:00', state: 'done' },
-    { label: 'Vehicle dispatched', place: 'Wakad Toll', time: '10:45', state: 'active' },
-    { label: 'Checkpoint scan', place: 'Panvel Yard', time: '13:50 ETA', state: 'pending' },
-    { label: 'Cargo handoff', place: 'Mumbai Port Terminal', time: '15:20 ETA', state: 'pending' },
-  ] },
-  { id: 'TRP-24083', source: 'Delhi Urban Terminal', destination: 'Jaipur Regional Yard', vehicle: 'DL-09-UR-1188', vehicleType: 'Bus', driver: 'Maya Singh', cargo: 'Passenger route', distance: 281, status: 'Completed', progress: 100, eta: 'Completed 12:05', checkpoints: [
-    { label: 'Trip drafted', place: 'Delhi Urban Terminal', time: '06:30', state: 'done' },
-    { label: 'Vehicle dispatched', place: 'Gurugram Station', time: '07:15', state: 'done' },
-    { label: 'On-route validation', place: 'Neemrana', time: '09:25', state: 'done' },
-    { label: 'Completed', place: 'Jaipur Regional Yard', time: '12:05', state: 'done' },
-  ] },
-  { id: 'TRP-24084', source: 'Chennai South Yard', destination: 'Kochi Logistics Park', vehicle: 'TN-22-LG-0432', vehicleType: 'Van', driver: 'Rohan Iyer', cargo: '4.6 tons', distance: 690, status: 'Draft', progress: 8, eta: 'Awaiting dispatch', checkpoints: [
-    { label: 'Trip drafted', place: 'Chennai South Yard', time: '11:15', state: 'active' },
-    { label: 'Vehicle dispatch', place: 'Loading Bay 4', time: 'Pending', state: 'pending' },
-    { label: 'Checkpoint scan', place: 'Coimbatore Bypass', time: 'Pending', state: 'pending' },
-    { label: 'Delivery confirmation', place: 'Kochi Logistics Park', time: 'Pending', state: 'pending' },
-  ] },
-  { id: 'TRP-24085', source: 'Surat Logistics Park', destination: 'Ahmedabad Consolidation Center', vehicle: 'GJ-05-RT-3904', vehicleType: 'Truck', driver: 'Kabir Shah', cargo: '15.2 tons', distance: 263, status: 'Cancelled', progress: 0, eta: 'Cancelled', checkpoints: [
-    { label: 'Trip drafted', place: 'Surat Logistics Park', time: '07:50', state: 'done' },
-    { label: 'Dispatch held', place: 'Compliance desk', time: '08:35', state: 'cancelled' },
-    { label: 'Cargo reassignment', place: 'Planning queue', time: 'Pending', state: 'pending' },
-  ] },
-  { id: 'TRP-24086', source: 'Hyderabad Metro Depot', destination: 'Bengaluru East Hub', vehicle: 'TS-07-MB-6201', vehicleType: 'Bus', driver: 'Isha Nair', cargo: 'Passenger route', distance: 575, status: 'On Route', progress: 72, eta: 'Today, 21:10', checkpoints: [
-    { label: 'Trip drafted', place: 'Hyderabad Metro Depot', time: '12:00', state: 'done' },
-    { label: 'Vehicle dispatched', place: 'Shamshabad Exit', time: '12:40', state: 'done' },
-    { label: 'Checkpoint crossed', place: 'Anantapur Terminal', time: '17:20', state: 'active' },
-    { label: 'Arrival scan', place: 'Bengaluru East Hub', time: '21:10 ETA', state: 'pending' },
-  ] },
-];
+const TRIP_STEPS = ['Draft', 'Dispatched', 'Completed', 'Cancelled'];
+const TRIP_STATUSES = ['All Status', 'Draft', 'Dispatched', 'Completed', 'Cancelled'];
 
 const statusConfig = {
   Draft: { cls: 'trip-badge draft', icon: 'edit_note' },
   Dispatched: { cls: 'trip-badge dispatched', icon: 'local_shipping' },
-  'On Route': { cls: 'trip-badge route', icon: 'route' },
   Completed: { cls: 'trip-badge completed', icon: 'task_alt' },
   Cancelled: { cls: 'trip-badge cancelled', icon: 'cancel' },
 };
@@ -70,84 +33,225 @@ function TripStepper({ status }) {
   );
 }
 
-function TripProgress({ value, status }) {
+function TripProgress({ status }) {
+  let value = 0;
+  if (status === 'Draft') value = 15;
+  else if (status === 'Dispatched') value = 50;
+  else if (status === 'Completed') value = 100;
   const tone = status === 'Cancelled' ? 'cancelled' : status === 'Completed' ? 'completed' : status === 'Draft' ? 'draft' : 'active';
   return <div className="trip-progress"><div><span className={tone} style={{ width: value + '%' }} /></div><strong>{value}%</strong></div>;
 }
 
-function Timeline({ trip }) {
-  return (
-    <div className="trip-timeline">
-      {trip.checkpoints.map((item, index) => <div key={item.label + index} className={'timeline-item ' + item.state}>
-        <span className="timeline-dot"><span className="material-symbols-outlined">{item.state === 'done' ? 'check' : item.state === 'cancelled' ? 'close' : item.state === 'active' ? 'radio_button_checked' : 'radio_button_unchecked'}</span></span>
-        <div><strong>{item.label}</strong><p>{item.place}</p><small>{item.time}</small></div>
-      </div>)}
-    </div>
-  );
-}
+function TripDetailPanel({ trip, onClose, onUpdate }) {
+  const [completeForm, setCompleteForm] = useState({ actualDistance: '', fuelConsumed: '', revenue: '', fuelCost: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-function TripDetailPanel({ trip, onClose }) {
   if (!trip) return null;
+
+  const handleDispatch = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const response = await tripsAPI.dispatch(trip._id);
+      onUpdate(response.trip || response);
+      alert('Trip dispatched successfully!');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to dispatch trip');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!confirm('Are you sure you want to cancel this trip?')) return;
+    setError('');
+    setLoading(true);
+    try {
+      const response = await tripsAPI.cancel(trip._id);
+      onUpdate(response.trip || response);
+      alert('Trip cancelled successfully!');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to cancel trip');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleComplete = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const payload = {
+        actualDistance: Number(completeForm.actualDistance),
+        fuelConsumed: Number(completeForm.fuelConsumed),
+        revenue: Number(completeForm.revenue),
+        fuelCost: Number(completeForm.fuelCost)
+      };
+      const response = await tripsAPI.complete(trip._id, payload);
+      onUpdate(response.trip || response);
+      alert('Trip completed successfully!');
+      setCompleteForm({ actualDistance: '', fuelConsumed: '', revenue: '', fuelCost: '' });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to complete trip');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="driver-panel-backdrop" role="presentation" onMouseDown={onClose}>
-      <aside className="trip-detail-panel" role="dialog" aria-modal="true" aria-label="Trip details" onMouseDown={event => event.stopPropagation()}>
+      <aside className="trip-detail-panel" role="dialog" aria-modal="true" aria-label="Trip details" onMouseDown={event => event.stopPropagation()} style={{ overflowY: 'auto' }}>
         <div className="drawer-head">
-          <div><p className="transit-kicker">Trip Command</p><h2>{trip.id}</h2></div>
+          <div><p className="transit-kicker">Trip Command</p><h2>{trip._id.slice(-6).toUpperCase()}</h2></div>
           <button type="button" onClick={onClose} aria-label="Close trip details"><span className="material-symbols-outlined">close</span></button>
         </div>
+
+        {error && <div className="auth-error" role="alert" style={{ marginBottom: '16px' }}><span className="material-symbols-outlined">error</span>{error}</div>}
+
         <div className="trip-route-card">
           <div><span>Source</span><strong>{trip.source}</strong></div>
           <span className="material-symbols-outlined">east</span>
           <div><span>Destination</span><strong>{trip.destination}</strong></div>
         </div>
+        
         <TripStepper status={trip.status} />
+        
         <div className="trip-detail-grid">
-          <div><span>Assigned Vehicle</span><strong>{trip.vehicle}</strong></div>
-          <div><span>Assigned Driver</span><strong>{trip.driver}</strong></div>
-          <div><span>Cargo Weight</span><strong>{trip.cargo}</strong></div>
-          <div><span>Distance</span><strong>{trip.distance} km</strong></div>
+          <div><span>Assigned Vehicle</span><strong>{trip.vehicleId?.registrationNumber || 'N/A'}</strong></div>
+          <div><span>Assigned Driver</span><strong>{trip.driverId?.name || 'N/A'}</strong></div>
+          <div><span>Cargo Weight</span><strong>{trip.cargoWeight} tons</strong></div>
+          <div><span>Planned Distance</span><strong>{trip.plannedDistance} km</strong></div>
         </div>
+
         <div className="trip-panel-section">
           <div className="driver-section-head"><h3>Progress</h3><TripBadge status={trip.status} /></div>
-          <TripProgress value={trip.progress} status={trip.status} />
-          <p>{trip.eta}</p>
+          <TripProgress status={trip.status} />
         </div>
-        <div className="trip-panel-section">
-          <div className="driver-section-head"><h3>Checkpoint Timeline</h3><span className="transit-chip">Live</span></div>
-          <Timeline trip={trip} />
-        </div>
-        <div className="driver-panel-actions"><button type="button" className="transit-btn"><span className="material-symbols-outlined">ios_share</span>Share</button><button type="button" className="transit-btn transit-btn-primary"><span className="material-symbols-outlined">edit_square</span>Update Trip</button></div>
+
+        {trip.status === 'Draft' && (
+          <div className="driver-panel-actions">
+            <button type="button" className="transit-btn transit-btn-primary" onClick={handleDispatch} disabled={loading}>
+              <span className="material-symbols-outlined">local_shipping</span>Dispatch Vehicle
+            </button>
+          </div>
+        )}
+
+        {trip.status === 'Dispatched' && (
+          <div className="trip-panel-section" style={{ borderTop: '1px solid rgba(148,163,184,.16)', paddingTop: '16px' }}>
+            <h3 style={{ color: '#fff', fontSize: '14px', marginBottom: '12px' }}>Complete Trip Metrics</h3>
+            <form onSubmit={handleComplete} className="drawer-form" style={{ background: 'transparent', padding: 0 }}>
+              <div className="drawer-grid">
+                <label>Actual Distance (km)
+                  <input type="number" required value={completeForm.actualDistance} onChange={e => setCompleteForm(prev => ({ ...prev, actualDistance: e.target.value }))} placeholder="e.g. 570" />
+                </label>
+                <label>Fuel Consumed (liters)
+                  <input type="number" required value={completeForm.fuelConsumed} onChange={e => setCompleteForm(prev => ({ ...prev, fuelConsumed: e.target.value }))} placeholder="e.g. 150" />
+                </label>
+              </div>
+              <div className="drawer-grid">
+                <label>Revenue Generated (INR)
+                  <input type="number" required value={completeForm.revenue} onChange={e => setCompleteForm(prev => ({ ...prev, revenue: e.target.value }))} placeholder="e.g. 25000" />
+                </label>
+                <label>Fuel Cost (INR)
+                  <input type="number" required value={completeForm.fuelCost} onChange={e => setCompleteForm(prev => ({ ...prev, fuelCost: e.target.value }))} placeholder="e.g. 15000" />
+                </label>
+              </div>
+              <div className="driver-panel-actions" style={{ marginTop: '16px' }}>
+                <button type="button" className="transit-btn" style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,.3)' }} onClick={handleCancel} disabled={loading}>Cancel Trip</button>
+                <button type="submit" className="transit-btn transit-btn-primary" disabled={loading}>
+                  <span className="material-symbols-outlined">task_alt</span>Complete Trip
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </aside>
     </div>
   );
 }
 
-function CreateTripDrawer({ open, onClose, onAdd }) {
-  const [form, setForm] = useState({ source: '', destination: '', vehicle: '', vehicleType: 'Truck', driver: '', cargo: '', distance: 120, status: 'Draft' });
+function CreateTripDrawer({ open, onClose, onAdd, vehicles, drivers }) {
+  const [form, setForm] = useState({ source: '', destination: '', vehicleId: '', driverId: '', cargoWeight: '', plannedDistance: 100 });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const availableVehicles = useMemo(() => vehicles.filter(v => v.status === 'Available'), [vehicles]);
+  const availableDrivers = useMemo(() => drivers.filter(d => d.status === 'Available'), [drivers]);
+
+  // Set default selection when available lists update
+  useEffect(() => {
+    if (availableVehicles.length && !form.vehicleId) {
+      setForm(prev => ({ ...prev, vehicleId: availableVehicles[0]._id }));
+    }
+  }, [availableVehicles]);
+
+  useEffect(() => {
+    if (availableDrivers.length && !form.driverId) {
+      setForm(prev => ({ ...prev, driverId: availableDrivers[0]._id }));
+    }
+  }, [availableDrivers]);
+
   if (!open) return null;
-  const set = field => event => setForm(prev => ({ ...prev, [field]: field === 'distance' ? Number(event.target.value) : event.target.value }));
-  const submit = event => {
+
+  const set = field => event => setForm(prev => ({ ...prev, [field]: ['plannedDistance', 'cargoWeight'].includes(field) ? Number(event.target.value) : event.target.value }));
+  
+  const submit = async event => {
     event.preventDefault();
-    onAdd({ ...form, id: 'TRP-' + Date.now().toString().slice(-5), progress: form.status === 'Draft' ? 8 : 22, eta: 'Awaiting dispatch', checkpoints: [
-      { label: 'Trip drafted', place: form.source, time: 'Just now', state: 'active' },
-      { label: 'Vehicle dispatch', place: 'Dispatch bay', time: 'Pending', state: 'pending' },
-      { label: 'Checkpoint scan', place: 'Route checkpoint', time: 'Pending', state: 'pending' },
-      { label: 'Delivery confirmation', place: form.destination, time: 'Pending', state: 'pending' },
-    ] });
-    setForm({ source: '', destination: '', vehicle: '', vehicleType: 'Truck', driver: '', cargo: '', distance: 120, status: 'Draft' });
+    setError('');
+    setLoading(true);
+
+    if (!form.vehicleId || !form.driverId) {
+      setError('Please select both an available vehicle and an available driver.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await tripsAPI.create(form);
+      onAdd(response.trip || response);
+      setForm({ source: '', destination: '', vehicleId: '', driverId: '', cargoWeight: '', plannedDistance: 100 });
+      alert('Trip drafted successfully!');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to draft trip');
+    } finally {
+      setLoading(false);
+    }
   };
+
   return (
     <div className="drawer-backdrop" role="presentation" onMouseDown={onClose} style={{ justifyContent: 'center', alignItems: 'center' }}>
-      <aside className="vehicle-drawer" role="dialog" aria-modal="true" aria-label="Create trip" onMouseDown={event => event.stopPropagation()} style={{ maxHeight: '90vh', borderRadius: '16px', border: '1px solid rgba(148,163,184,.16)' }}>
+      <aside className="vehicle-drawer" role="dialog" aria-modal="true" aria-label="Create trip" onMouseDown={event => event.stopPropagation()} style={{ maxHeight: '90vh', borderRadius: '16px', border: '1px solid rgba(148,163,184,.16)', overflowY: 'auto' }}>
         <div className="drawer-head"><div><p className="transit-kicker">Trip Planning</p><h2>Create Trip</h2></div><button type="button" onClick={onClose} aria-label="Close drawer"><span className="material-symbols-outlined">close</span></button></div>
         <form onSubmit={submit} className="drawer-form">
+          {error && <div className="auth-error" role="alert"><span className="material-symbols-outlined">error</span>{error}</div>}
           <label>Source<input required value={form.source} onChange={set('source')} placeholder="Origin depot" /></label>
           <label>Destination<input required value={form.destination} onChange={set('destination')} placeholder="Destination hub" /></label>
-          <div className="drawer-grid"><label>Vehicle Type<select value={form.vehicleType} onChange={set('vehicleType')}>{VEHICLE_TYPES.slice(1).map(item => <option key={item}>{item}</option>)}</select></label><label>Status<select value={form.status} onChange={set('status')}>{TRIP_STATUSES.slice(1).map(item => <option key={item}>{item}</option>)}</select></label></div>
-          <label>Assigned Vehicle<input required value={form.vehicle} onChange={set('vehicle')} placeholder="KA-01-TX-2048" /></label>
-          <label>Assigned Driver<input required value={form.driver} onChange={set('driver')} placeholder="Driver name" /></label>
-          <div className="drawer-grid"><label>Cargo Weight<input required value={form.cargo} onChange={set('cargo')} placeholder="18.4 tons" /></label><label>Distance<input type="number" min="1" value={form.distance} onChange={set('distance')} /></label></div>
-          <div className="drawer-actions"><button type="button" className="transit-btn" onClick={onClose}>Cancel</button><button type="submit" className="transit-btn transit-btn-primary"><span className="material-symbols-outlined">add_road</span>Create Trip</button></div>
+          
+          <div className="drawer-grid">
+            <label>Assigned Available Vehicle
+              <select required value={form.vehicleId} onChange={set('vehicleId')}>
+                {availableVehicles.map(v => <option key={v._id} value={v._id}>{v.registrationNumber} - {v.model}</option>)}
+                {availableVehicles.length === 0 && <option value="">No available vehicles</option>}
+              </select>
+            </label>
+            <label>Assigned Available Driver
+              <select required value={form.driverId} onChange={set('driverId')}>
+                {availableDrivers.map(d => <option key={d._id} value={d._id}>{d.name} ({d.licenseCategory})</option>)}
+                {availableDrivers.length === 0 && <option value="">No available drivers</option>}
+              </select>
+            </label>
+          </div>
+          <div className="drawer-grid">
+            <label>Cargo Weight (tons)
+              <input type="number" step="0.1" required value={form.cargoWeight} onChange={set('cargoWeight')} placeholder="e.g. 18.4" />
+            </label>
+            <label>Planned Distance (km)
+              <input type="number" min="1" required value={form.plannedDistance} onChange={set('plannedDistance')} />
+            </label>
+          </div>
+          <div className="drawer-actions"><button type="button" className="transit-btn" onClick={onClose}>Cancel</button><button type="submit" className="transit-btn transit-btn-primary" disabled={loading}>{loading ? 'Creating...' : 'Create Trip'}</button></div>
         </form>
       </aside>
     </div>
@@ -155,25 +259,64 @@ function CreateTripDrawer({ open, onClose, onAdd }) {
 }
 
 const TripManagement = () => {
-  const [trips, setTrips] = useState(INITIAL_TRIPS);
+  const [trips, setTrips] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('All Status');
-  const [vehicleType, setVehicleType] = useState('All Vehicle Types');
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [tripsData, vehiclesData, driversData] = await Promise.all([
+        tripsAPI.getAll(),
+        vehiclesAPI.getAll(),
+        driversAPI.getAll()
+      ]);
+      setTrips(tripsData.trips || []);
+      setVehicles(vehiclesData);
+      setDrivers(driversData);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load trip board operations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredTrips = useMemo(() => trips.filter(trip => {
     const query = search.trim().toLowerCase();
-    const matchesQuery = !query || [trip.id, trip.source, trip.destination, trip.vehicle, trip.driver, trip.cargo].some(value => String(value).toLowerCase().includes(query));
+    const matchesQuery = !query || [
+      trip._id,
+      trip.source,
+      trip.destination,
+      trip.vehicleId?.registrationNumber,
+      trip.driverId?.name,
+      trip.cargoWeight
+    ].some(value => String(value || '').toLowerCase().includes(query));
     const matchesStatus = status === 'All Status' || trip.status === status;
-    const matchesType = vehicleType === 'All Vehicle Types' || trip.vehicleType === vehicleType;
-    return matchesQuery && matchesStatus && matchesType;
-  }), [trips, search, status, vehicleType]);
+    return matchesQuery && matchesStatus;
+  }), [trips, search, status]);
 
   const addTrip = trip => {
     setTrips(prev => [trip, ...prev]);
-    setSelectedTrip(trip);
     setCreateOpen(false);
+    // Reload database metrics to refresh vehicle/driver availability statuses
+    loadData();
+  };
+
+  const handleUpdate = updatedTrip => {
+    setTrips(prev => prev.map(t => t._id === updatedTrip._id ? updatedTrip : t));
+    setSelectedTrip(updatedTrip);
+    loadData(); // refresh roster availability statuses
   };
 
   return (
@@ -187,44 +330,47 @@ const TripManagement = () => {
           </div>
           <div className="vehicle-controls trip-controls">
             <button type="button" className="transit-btn transit-btn-primary" onClick={() => setCreateOpen(true)}><span className="material-symbols-outlined">add_road</span>Create Trip</button>
-            <label className="vehicle-search" aria-label="Search trips"><span className="material-symbols-outlined">search</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search trip, route, driver" /></label>
-            <button type="button" className="transit-btn"><span className="material-symbols-outlined">tune</span>Filters</button>
+            <label className="vehicle-search" aria-label="Search trips"><span className="material-symbols-outlined">search</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search trip ID, route, vehicle, driver" /></label>
             <select value={status} onChange={event => setStatus(event.target.value)} aria-label="Trip status filter">{TRIP_STATUSES.map(item => <option key={item}>{item}</option>)}</select>
-            <select value={vehicleType} onChange={event => setVehicleType(event.target.value)} aria-label="Vehicle type filter">{VEHICLE_TYPES.map(item => <option key={item}>{item}</option>)}</select>
           </div>
         </section>
 
-        <section className="transit-panel trip-lifecycle-card">
-          <div><p className="transit-kicker">Lifecycle Model</p><h2>Draft to delivery visibility</h2></div>
-          <TripStepper status="On Route" />
-        </section>
-
-        <section className="transit-panel vehicle-table-card trip-table-card">
-          <div className="driver-table-head"><div><p className="transit-kicker">Trip Board</p><h2>Active Trips</h2></div><span>{filteredTrips.length} records</span></div>
-          <div className="vehicle-table-wrap">
-            <table className="vehicle-table trip-table">
-              <thead><tr><th>Trip ID</th><th>Source</th><th>Destination</th><th>Assigned Vehicle</th><th>Assigned Driver</th><th>Cargo Weight</th><th>Distance</th><th>Trip Status</th><th>Actions</th></tr></thead>
-              <tbody>
-                {filteredTrips.map(trip => <tr key={trip.id} onClick={() => setSelectedTrip(trip)}>
-                  <td><span className="trip-id">{trip.id}</span></td>
-                  <td>{trip.source}</td>
-                  <td>{trip.destination}</td>
-                  <td><span className="type-pill">{trip.vehicle}</span></td>
-                  <td><div className="driver-cell"><span>{trip.driver.split(' ').map(part => part[0]).join('').slice(0, 2)}</span>{trip.driver}</div></td>
-                  <td>{trip.cargo}</td>
-                  <td>{trip.distance} km</td>
-                  <td><div className="trip-status-cell"><TripBadge status={trip.status} /><TripProgress value={trip.progress} status={trip.status} /></div></td>
-                  <td><div className="row-actions"><button type="button" onClick={event => { event.stopPropagation(); setSelectedTrip(trip); }} aria-label={'Open ' + trip.id}><span className="material-symbols-outlined">visibility</span></button><button type="button" onClick={event => event.stopPropagation()} aria-label="More actions"><span className="material-symbols-outlined">more_horiz</span></button></div></td>
-                </tr>)}
-              </tbody>
-            </table>
-          </div>
-          {filteredTrips.length === 0 && <div className="vehicle-empty"><div className="trip-empty-art"><span className="material-symbols-outlined map">route</span><span className="material-symbols-outlined truck">local_shipping</span><i /></div><h3>No trips found</h3><p>Adjust search, trip status, or vehicle type filters to restore records.</p></div>}
-          <div className="vehicle-pagination"><p>Showing <strong>{filteredTrips.length}</strong> of <strong>{trips.length}</strong> trips</p><div><button className="transit-btn" disabled>Previous</button><span>Page 1 of 1</span><button className="transit-btn" disabled>Next</button></div></div>
-        </section>
+        {loading ? (
+          <section className="transit-panel vehicle-table-card" style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
+            <p>Loading active trip board...</p>
+          </section>
+        ) : error ? (
+          <div className="auth-error" role="alert"><span className="material-symbols-outlined">error</span>{error}</div>
+        ) : (
+          <section className="transit-panel vehicle-table-card trip-table-card">
+            <div className="driver-table-head"><div><p className="transit-kicker">Trip Board</p><h2>Active Trips</h2></div><span>{filteredTrips.length} records</span></div>
+            <div className="vehicle-table-wrap">
+              <table className="vehicle-table trip-table">
+                <thead><tr><th>Trip ID</th><th>Source</th><th>Destination</th><th>Assigned Vehicle</th><th>Assigned Driver</th><th>Cargo Weight</th><th>Planned Distance</th><th>Trip Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {filteredTrips.map(trip => (
+                    <tr key={trip._id} onClick={() => setSelectedTrip(trip)}>
+                      <td><span className="trip-id">{trip._id.slice(-6).toUpperCase()}</span></td>
+                      <td>{trip.source}</td>
+                      <td>{trip.destination}</td>
+                      <td><span className="type-pill">{trip.vehicleId?.registrationNumber || 'N/A'}</span></td>
+                      <td><div className="driver-cell"><span>{initialsFor(trip.driverId?.name)}</span>{trip.driverId?.name || 'N/A'}</div></td>
+                      <td>{trip.cargoWeight} tons</td>
+                      <td>{trip.plannedDistance} km</td>
+                      <td><div className="trip-status-cell"><TripBadge status={trip.status} /><TripProgress status={trip.status} /></div></td>
+                      <td><div className="row-actions"><button type="button" onClick={event => { event.stopPropagation(); setSelectedTrip(trip); }} aria-label={'Open ' + trip._id}><span className="material-symbols-outlined">visibility</span></button></div></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {filteredTrips.length === 0 && <div className="vehicle-empty"><div className="trip-empty-art"><span className="material-symbols-outlined map">route</span><span className="material-symbols-outlined truck">local_shipping</span><i /></div><h3>No trips found</h3><p>Adjust search or trip status filters to restore records.</p></div>}
+            <div className="vehicle-pagination"><p>Showing <strong>{filteredTrips.length}</strong> of <strong>{trips.length}</strong> trips</p><div><button className="transit-btn" disabled>Previous</button><span>Page 1 of 1</span><button className="transit-btn" disabled>Next</button></div></div>
+          </section>
+        )}
       </main>
-      <TripDetailPanel trip={selectedTrip} onClose={() => setSelectedTrip(null)} />
-      <CreateTripDrawer open={createOpen} onClose={() => setCreateOpen(false)} onAdd={addTrip} />
+      <TripDetailPanel trip={selectedTrip} onClose={() => setSelectedTrip(null)} onUpdate={handleUpdate} />
+      <CreateTripDrawer open={createOpen} onClose={() => setCreateOpen(false)} onAdd={addTrip} vehicles={vehicles} drivers={drivers} />
     </Layout>
   );
 };

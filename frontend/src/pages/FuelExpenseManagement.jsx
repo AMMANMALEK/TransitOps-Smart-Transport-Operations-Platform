@@ -1,41 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Layout from '../components/Layout';
+import { financeAPI } from '../api/finance';
+import { vehiclesAPI } from '../api/vehicles';
 
-const VEHICLES = ['All Vehicles', 'KA-01-TX-2048', 'MH-12-FL-7781', 'DL-09-UR-1188', 'TN-22-LG-0432', 'GJ-05-RT-3904', 'TS-07-MB-6201'];
-const DATE_FILTERS = ['Today', 'Last 7 Days', 'This Month', 'Last Month', 'Quarter to Date'];
-const EXPENSE_TYPES = ['Fuel', 'Tolls', 'Repair', 'Maintenance', 'Insurance'];
-
-const INITIAL_EXPENSES = [
-  { id: 'EXP-9041', date: 'Jul 12, 2026', vehicle: 'KA-01-TX-2048', type: 'Fuel', vendor: 'Shell Fleet Card', litres: 168, mileage: 5.8, amount: 18480, status: 'Settled' },
-  { id: 'EXP-9040', date: 'Jul 12, 2026', vehicle: 'MH-12-FL-7781', type: 'Tolls', vendor: 'FASTag Corridor', litres: 0, mileage: 0, amount: 4280, status: 'Pending' },
-  { id: 'EXP-9039', date: 'Jul 11, 2026', vehicle: 'DL-09-UR-1188', type: 'Repair', vendor: 'Metro Service Bay', litres: 0, mileage: 0, amount: 48500, status: 'Approved' },
-  { id: 'EXP-9038', date: 'Jul 10, 2026', vehicle: 'TN-22-LG-0432', type: 'Maintenance', vendor: 'TransitOps Workshop', litres: 0, mileage: 0, amount: 18200, status: 'Settled' },
-  { id: 'EXP-9037', date: 'Jul 09, 2026', vehicle: 'GJ-05-RT-3904', type: 'Fuel', vendor: 'HP Fleet Fuel', litres: 142, mileage: 6.2, amount: 15620, status: 'Settled' },
-  { id: 'EXP-9036', date: 'Jul 08, 2026', vehicle: 'TS-07-MB-6201', type: 'Insurance', vendor: 'National Fleet Cover', litres: 0, mileage: 0, amount: 64200, status: 'Approved' },
-  { id: 'EXP-9035', date: 'Jul 07, 2026', vehicle: 'MH-12-FL-7781', type: 'Fuel', vendor: 'Reliance Fleet', litres: 196, mileage: 5.4, amount: 21560, status: 'Settled' },
-];
-
-const MONTHLY_SPEND = [
-  { label: 'Feb', value: 282000 },
-  { label: 'Mar', value: 318000 },
-  { label: 'Apr', value: 296000 },
-  { label: 'May', value: 352000 },
-  { label: 'Jun', value: 338000 },
-  { label: 'Jul', value: 391000 },
-];
+const DATE_FILTERS = ['All Time', 'Today', 'Last 7 Days', 'This Month'];
+const EXPENSE_TYPES = ['Fuel', 'Toll', 'Other'];
 
 const typeConfig = {
   Fuel: { cls: 'expense-badge fuel', icon: 'local_gas_station', color: '#f59e0b' },
-  Tolls: { cls: 'expense-badge tolls', icon: 'toll', color: '#38bdf8' },
-  Repair: { cls: 'expense-badge repair', icon: 'build_circle', color: '#ef4444' },
-  Maintenance: { cls: 'expense-badge maintenance-exp', icon: 'engineering', color: '#22c55e' },
-  Insurance: { cls: 'expense-badge insurance', icon: 'verified_user', color: '#a78bfa' },
-};
-
-const statusConfig = {
-  Settled: 'finance-status settled',
-  Pending: 'finance-status pending',
-  Approved: 'finance-status approved',
+  Toll: { cls: 'expense-badge tolls', icon: 'toll', color: '#38bdf8' },
+  Other: { cls: 'expense-badge insurance', icon: 'payments', color: '#a78bfa' },
 };
 
 function formatCurrency(value) {
@@ -43,34 +17,119 @@ function formatCurrency(value) {
 }
 
 function ExpenseBadge({ type }) {
-  const cfg = typeConfig[type] || typeConfig.Fuel;
+  const cfg = typeConfig[type] || typeConfig.Other;
   return <span className={cfg.cls}><span className="material-symbols-outlined">{cfg.icon}</span>{type}</span>;
 }
 
-function FinanceStatus({ status }) {
-  return <span className={statusConfig[status] || statusConfig.Pending}>{status}</span>;
-}
+function AddExpenseDrawer({ open, onClose, onAdd, vehicles }) {
+  const [form, setForm] = useState({ vehicleId: '', type: 'Fuel', liters: 100, cost: 9500, amount: 2000, description: '', date: new Date().toISOString().split('T')[0] });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-function AddExpenseDrawer({ open, onClose, onAdd }) {
-  const [form, setForm] = useState({ vehicle: 'KA-01-TX-2048', type: 'Fuel', vendor: '', litres: 120, mileage: 5.6, amount: 15000, status: 'Pending' });
+  useEffect(() => {
+    if (vehicles.length > 0 && !form.vehicleId) {
+      setForm(prev => ({ ...prev, vehicleId: vehicles[0]._id }));
+    }
+  }, [vehicles]);
+
   if (!open) return null;
-  const set = field => event => setForm(prev => ({ ...prev, [field]: ['litres', 'mileage', 'amount'].includes(field) ? Number(event.target.value) : event.target.value }));
-  const submit = event => {
+
+  const set = field => event => setForm(prev => ({ 
+    ...prev, 
+    [field]: ['liters', 'cost', 'amount'].includes(field) ? Number(event.target.value) : event.target.value 
+  }));
+
+  const submit = async event => {
     event.preventDefault();
-    onAdd({ ...form, id: 'EXP-' + Date.now().toString().slice(-4), date: 'Jul 12, 2026' });
-    setForm({ vehicle: 'KA-01-TX-2048', type: 'Fuel', vendor: '', litres: 120, mileage: 5.6, amount: 15000, status: 'Pending' });
+    setError('');
+    setLoading(true);
+
+    if (!form.vehicleId) {
+      setError('Please select a vehicle');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      if (form.type === 'Fuel') {
+        const payload = {
+          vehicleId: form.vehicleId,
+          liters: Number(form.liters),
+          cost: Number(form.cost),
+          date: form.date
+        };
+        await financeAPI.createFuelLog(payload);
+        alert('Fuel purchase logged successfully!');
+      } else {
+        const payload = {
+          vehicleId: form.vehicleId,
+          type: form.type, // 'Toll' or 'Other'
+          amount: Number(form.amount),
+          description: form.description,
+          date: form.date
+        };
+        await financeAPI.createExpense(payload);
+        alert('Operational expense logged successfully!');
+      }
+      onAdd();
+      setForm({ vehicleId: vehicles[0]?._id || '', type: 'Fuel', liters: 100, cost: 9500, amount: 2000, description: '', date: new Date().toISOString().split('T')[0] });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to submit transaction');
+    } finally {
+      setLoading(false);
+    }
   };
+
   return (
     <div className="drawer-backdrop" role="presentation" onMouseDown={onClose}>
-      <aside className="vehicle-drawer" role="dialog" aria-modal="true" aria-label="Add expense" onMouseDown={event => event.stopPropagation()}>
-        <div className="drawer-head"><div><p className="transit-kicker">Finance Control</p><h2>Add Expense</h2></div><button type="button" onClick={onClose} aria-label="Close drawer"><span className="material-symbols-outlined">close</span></button></div>
+      <aside className="vehicle-drawer" role="dialog" aria-modal="true" aria-label="Add transaction" onMouseDown={event => event.stopPropagation()} style={{ overflowY: 'auto' }}>
+        <div className="drawer-head"><div><p className="transit-kicker">Finance Control</p><h2>Add Expense/Fuel</h2></div><button type="button" onClick={onClose} aria-label="Close drawer"><span className="material-symbols-outlined">close</span></button></div>
         <form onSubmit={submit} className="drawer-form">
-          <label>Vehicle<select value={form.vehicle} onChange={set('vehicle')}>{VEHICLES.slice(1).map(item => <option key={item}>{item}</option>)}</select></label>
-          <div className="drawer-grid"><label>Expense Type<select value={form.type} onChange={set('type')}>{EXPENSE_TYPES.map(item => <option key={item}>{item}</option>)}</select></label><label>Status<select value={form.status} onChange={set('status')}>{['Pending', 'Approved', 'Settled'].map(item => <option key={item}>{item}</option>)}</select></label></div>
-          <label>Vendor<input required value={form.vendor} onChange={set('vendor')} placeholder="Fuel station, toll provider, insurer" /></label>
-          <div className="drawer-grid"><label>Fuel Litres<input type="number" min="0" value={form.litres} onChange={set('litres')} /></label><label>Average Mileage<input type="number" min="0" step="0.1" value={form.mileage} onChange={set('mileage')} /></label></div>
-          <label>Amount<input type="number" min="0" value={form.amount} onChange={set('amount')} /></label>
-          <div className="drawer-actions"><button type="button" className="transit-btn" onClick={onClose}>Cancel</button><button type="submit" className="transit-btn transit-btn-primary"><span className="material-symbols-outlined">add_card</span>Add Expense</button></div>
+          {error && <div className="auth-error" role="alert"><span className="material-symbols-outlined">error</span>{error}</div>}
+          
+          <label>Vehicle
+            <select value={form.vehicleId} onChange={set('vehicleId')}>
+              {vehicles.map(item => <option key={item._id} value={item._id}>{item.registrationNumber} - {item.model}</option>)}
+            </select>
+          </label>
+          
+          <div className="drawer-grid">
+            <label>Transaction Type
+              <select value={form.type} onChange={set('type')}>
+                {EXPENSE_TYPES.map(item => <option key={item} value={item}>{item}</option>)}
+              </select>
+            </label>
+            <label>Transaction Date
+              <input type="date" required value={form.date} onChange={set('date')} />
+            </label>
+          </div>
+
+          {form.type === 'Fuel' ? (
+            <div className="drawer-grid">
+              <label>Fuel Quantity (liters)
+                <input type="number" min="1" required value={form.liters} onChange={set('liters')} />
+              </label>
+              <label>Total Cost (INR)
+                <input type="number" min="1" required value={form.cost} onChange={set('cost')} />
+              </label>
+            </div>
+          ) : (
+            <>
+              <label>Expense Amount (INR)
+                <input type="number" min="1" required value={form.amount} onChange={set('amount')} />
+              </label>
+              <label>Description/Vendor
+                <input required value={form.description} onChange={set('description')} placeholder="e.g. Expressway FASTag toll or Insurance premium" />
+              </label>
+            </>
+          )}
+
+          <div className="drawer-actions">
+            <button type="button" className="transit-btn" onClick={onClose}>Cancel</button>
+            <button type="submit" className="transit-btn transit-btn-primary" disabled={loading}>
+              <span className="material-symbols-outlined">add_card</span>Log Transaction
+            </button>
+          </div>
         </form>
       </aside>
     </div>
@@ -78,74 +137,234 @@ function AddExpenseDrawer({ open, onClose, onAdd }) {
 }
 
 const FuelExpenseManagement = () => {
-  const [expenses, setExpenses] = useState(INITIAL_EXPENSES);
-  const [dateFilter, setDateFilter] = useState('This Month');
+  const [vehicles, setVehicles] = useState([]);
+  const [fuelLogs, setFuelLogs] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  
+  const [dateFilter, setDateFilter] = useState('All Time');
   const [vehicleFilter, setVehicleFilter] = useState('All Vehicles');
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const filteredExpenses = useMemo(() => expenses.filter(item => vehicleFilter === 'All Vehicles' || item.vehicle === vehicleFilter), [expenses, vehicleFilter]);
-  const total = filteredExpenses.reduce((sum, item) => sum + item.amount, 0);
-  const todayFuel = filteredExpenses.filter(item => item.date === 'Jul 12, 2026' && item.type === 'Fuel').reduce((sum, item) => sum + item.amount, 0);
-  const fuelTotal = filteredExpenses.filter(item => item.type === 'Fuel').reduce((sum, item) => sum + item.amount, 0);
-  const mileageItems = filteredExpenses.filter(item => item.mileage > 0);
-  const avgMileage = mileageItems.length ? mileageItems.reduce((sum, item) => sum + item.mileage, 0) / mileageItems.length : 0;
-  const breakdown = EXPENSE_TYPES.map(type => ({ type, amount: filteredExpenses.filter(item => item.type === type).reduce((sum, item) => sum + item.amount, 0) }));
-  const maxMonth = Math.max(...MONTHLY_SPEND.map(item => item.value));
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const pieStyle = {
-    background: 'conic-gradient(#f59e0b 0 33%, #38bdf8 33% 41%, #ef4444 41% 61%, #22c55e 61% 73%, #a78bfa 73% 100%)',
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [fuelData, expenseData, vehiclesData] = await Promise.all([
+        financeAPI.getAllFuelLogs(),
+        financeAPI.getAllExpenses(),
+        vehiclesAPI.getAll()
+      ]);
+      setFuelLogs(fuelData);
+      setExpenses(expenseData);
+      setVehicles(vehiclesData);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load financial records');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const addExpense = expense => {
-    setExpenses(prev => [expense, ...prev]);
+  // Merge FuelLogs and Expenses into a single list
+  const transactions = useMemo(() => {
+    const fuelList = fuelLogs.map(f => ({
+      _id: f._id,
+      date: f.date,
+      vehicleId: f.vehicleId,
+      registrationNumber: f.vehicleId?.registrationNumber || 'N/A',
+      type: 'Fuel',
+      liters: f.liters,
+      amount: f.cost,
+      description: `${f.liters} liters fuel purchase`
+    }));
+
+    const expenseList = expenses.map(e => ({
+      _id: e._id,
+      date: e.date,
+      vehicleId: e.vehicleId,
+      registrationNumber: e.vehicleId?.registrationNumber || 'N/A',
+      type: e.type,
+      liters: 0,
+      amount: e.amount,
+      description: e.description || `${e.type} fee`
+    }));
+
+    return [...fuelList, ...expenseList].sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [fuelLogs, expenses]);
+
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      const matchesVehicle = vehicleFilter === 'All Vehicles' || t.vehicleId?._id === vehicleFilter;
+      
+      let matchesDate = true;
+      if (dateFilter === 'Today') {
+        const todayStr = new Date('2026-07-12T00:00:00').toDateString();
+        matchesDate = new Date(t.date).toDateString() === todayStr;
+      } else if (dateFilter === 'Last 7 Days') {
+        const sevenDaysAgo = new Date('2026-07-05T00:00:00');
+        matchesDate = new Date(t.date) >= sevenDaysAgo;
+      } else if (dateFilter === 'This Month') {
+        const currentMonth = new Date('2026-07-12T00:00:00').getMonth();
+        matchesDate = new Date(t.date).getMonth() === currentMonth;
+      }
+
+      return matchesVehicle && matchesDate;
+    });
+  }, [transactions, vehicleFilter, dateFilter]);
+
+  const totalSpend = filteredTransactions.reduce((sum, item) => sum + item.amount, 0);
+  const fuelSpend = filteredTransactions.filter(item => item.type === 'Fuel').reduce((sum, item) => sum + item.amount, 0);
+  const tollOtherSpend = filteredTransactions.filter(item => item.type !== 'Fuel').reduce((sum, item) => sum + item.amount, 0);
+  const totalLiters = filteredTransactions.filter(item => item.type === 'Fuel').reduce((sum, item) => sum + item.liters, 0);
+
+  const breakdown = EXPENSE_TYPES.map(type => ({
+    type,
+    amount: filteredTransactions.filter(item => {
+      if (type === 'Fuel') return item.type === 'Fuel';
+      if (type === 'Toll') return item.type === 'Toll';
+      return item.type !== 'Fuel' && item.type !== 'Toll';
+    }).reduce((sum, item) => sum + item.amount, 0)
+  }));
+
+  const handleAddTransaction = () => {
     setDrawerOpen(false);
+    loadData();
   };
 
   return (
     <Layout>
       <main className="transit-shell-main space-y-lg">
-        <section className="transit-panel finance-toolbar">
-          <div className="vehicle-title-block"><p className="transit-eyebrow">Cost Operations</p><h1>Fuel & Expense Management</h1><span>Track fuel, tolls, repair, maintenance, and insurance costs across the transport network.</span></div>
-          <div className="vehicle-controls finance-controls">
-            <select value={dateFilter} onChange={event => setDateFilter(event.target.value)} aria-label="Date filter">{DATE_FILTERS.map(item => <option key={item}>{item}</option>)}</select>
-            <select value={vehicleFilter} onChange={event => setVehicleFilter(event.target.value)} aria-label="Vehicle filter">{VEHICLES.map(item => <option key={item}>{item}</option>)}</select>
-            <button type="button" className="transit-btn"><span className="material-symbols-outlined">download</span>Export</button>
-            <button type="button" className="transit-btn transit-btn-primary" onClick={() => setDrawerOpen(true)}><span className="material-symbols-outlined">add_card</span>Add Expense</button>
+        <section className="transit-panel vehicle-toolbar">
+          <div className="vehicle-title-block">
+            <p className="transit-eyebrow">Finance Control</p>
+            <h1>Fuel &amp; Expense Management</h1>
+            <span>Record fuel purchases, track tolls, and manage fleet operational cost centers dynamically.</span>
+          </div>
+          <div className="vehicle-controls">
+            <button type="button" className="transit-btn transit-btn-primary" onClick={() => setDrawerOpen(true)}>
+              <span className="material-symbols-outlined">add_card</span>Log Expense/Fuel
+            </button>
+            <select value={vehicleFilter} onChange={event => setVehicleFilter(event.target.value)} aria-label="Vehicle filter">
+              <option value="All Vehicles">All Vehicles</option>
+              {vehicles.map(v => <option key={v._id} value={v._id}>{v.registrationNumber}</option>)}
+            </select>
+            <select value={dateFilter} onChange={event => setDateFilter(event.target.value)} aria-label="Timeframe filter">
+              {DATE_FILTERS.map(item => <option key={item}>{item}</option>)}
+            </select>
           </div>
         </section>
 
-        <section className="finance-layout">
-          <div className="finance-main">
-            <section className="fuel-summary-grid">
-              <div className="finance-kpi-card"><span className="material-symbols-outlined">local_gas_station</span><p>Today's Fuel Cost</p><strong>{formatCurrency(todayFuel)}</strong><small>Live fleet card spend</small></div>
-              <div className="finance-kpi-card"><span className="material-symbols-outlined">calendar_month</span><p>Monthly Fuel Cost</p><strong>{formatCurrency(fuelTotal)}</strong><small>{dateFilter}</small></div>
-              <div className="finance-kpi-card"><span className="material-symbols-outlined">speed</span><p>Average Mileage</p><strong>{avgMileage.toFixed(1)} km/l</strong><small>Across fueled vehicles</small></div>
-              <div className="finance-kpi-card"><span className="material-symbols-outlined">payments</span><p>Operational Cost</p><strong>{formatCurrency(total)}</strong><small>Filtered expense total</small></div>
-            </section>
+        {error && <div className="auth-error" role="alert"><span className="material-symbols-outlined">error</span>{error}</div>}
 
-            <section className="transit-panel finance-table-card">
-              <div className="driver-table-head"><div><p className="transit-kicker">Expense Ledger</p><h2>Fuel, tolls, repair, maintenance, insurance</h2></div><span>{filteredExpenses.length} transactions</span></div>
-              <div className="vehicle-table-wrap">
-                <table className="vehicle-table finance-table">
-                  <thead><tr><th>Expense</th><th>Date</th><th>Vehicle</th><th>Vendor</th><th>Fuel</th><th>Mileage</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
-                  <tbody>{filteredExpenses.map(item => <tr key={item.id}>
-                    <td><div className="finance-expense-cell"><ExpenseBadge type={item.type} /><span>{item.id}</span></div></td>
-                    <td>{item.date}</td><td><span className="reg-number">{item.vehicle}</span></td><td>{item.vendor}</td><td>{item.litres ? item.litres + ' L' : '-'}</td><td>{item.mileage ? item.mileage + ' km/l' : '-'}</td><td><strong className="finance-amount">{formatCurrency(item.amount)}</strong></td><td><FinanceStatus status={item.status} /></td>
-                    <td><div className="row-actions"><button type="button" aria-label="View expense"><span className="material-symbols-outlined">visibility</span></button><button type="button" aria-label="More actions"><span className="material-symbols-outlined">more_horiz</span></button></div></td>
-                  </tr>)}</tbody>
-                </table>
+        {loading ? (
+          <section className="transit-panel" style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
+            <p>Loading financial ledgers...</p>
+          </section>
+        ) : (
+          <>
+            <section className="db-kpi-row">
+              <div className="transit-panel db-kpi font-body-sm">
+                <span className="material-symbols-outlined text-amber-500 bg-indigo-50">payments</span>
+                <div>
+                  <p className="text-slate-500">Total Spend</p>
+                  <h3>{formatCurrency(totalSpend)}</h3>
+                  <span>Tolls, fuel, &amp; other combined</span>
+                </div>
               </div>
-              <div className="vehicle-pagination"><p>Showing <strong>{filteredExpenses.length}</strong> of <strong>{expenses.length}</strong> expenses</p><div><button className="transit-btn" disabled>Previous</button><span>Page 1 of 1</span><button className="transit-btn" disabled>Next</button></div></div>
+              <div className="transit-panel db-kpi font-body-sm">
+                <span className="material-symbols-outlined text-blue-500 bg-indigo-50">local_gas_station</span>
+                <div>
+                  <p className="text-slate-500">Fuel Expenditure</p>
+                  <h3>{formatCurrency(fuelSpend)}</h3>
+                  <span>{totalLiters.toLocaleString()} liters purchased</span>
+                </div>
+              </div>
+              <div className="transit-panel db-kpi font-body-sm">
+                <span className="material-symbols-outlined text-green-500 bg-indigo-50">toll</span>
+                <div>
+                  <p className="text-slate-500">Tolls &amp; Other Fees</p>
+                  <h3>{formatCurrency(tollOtherSpend)}</h3>
+                  <span>FASTag &amp; miscellaneous operational costs</span>
+                </div>
+              </div>
             </section>
-          </div>
 
-          <aside className="finance-sidebar">
-            <section className="transit-panel finance-chart-card"><div className="finance-chart-head"><div><p className="transit-kicker">Breakdown</p><h2>Expense Mix</h2></div><span>{formatCurrency(total)}</span></div><div className="expense-pie" style={pieStyle}><div>{Math.round((breakdown[0].amount / Math.max(total, 1)) * 100)}%<small>Fuel</small></div></div><div className="expense-legend">{breakdown.map(item => <div key={item.type}><i style={{ background: typeConfig[item.type].color }} /><span>{item.type}</span><strong>{formatCurrency(item.amount)}</strong></div>)}</div></section>
-            <section className="transit-panel finance-chart-card"><div className="finance-chart-head"><div><p className="transit-kicker">Trend</p><h2>Monthly Spending</h2></div><span>6 mo</span></div><div className="spending-bars">{MONTHLY_SPEND.map(item => <div key={item.label}><span style={{ height: Math.max(18, (item.value / maxMonth) * 150) + 'px' }} /><strong>{item.label}</strong><small>{Math.round(item.value / 1000)}k</small></div>)}</div></section>
-          </aside>
-        </section>
+            <section className="maintenance-grid">
+              <div className="transit-panel vehicle-table-card" style={{ gridColumn: 'span 2' }}>
+                <div className="driver-table-head"><div><p className="transit-kicker">Unified Ledger</p><h2>Recent Expenditures</h2></div><span>{filteredTransactions.length} records found</span></div>
+                <div className="vehicle-table-wrap">
+                  <table className="vehicle-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Vehicle</th>
+                        <th>Type</th>
+                        <th>Description/Vendor</th>
+                        <th>Litres</th>
+                        <th>Total Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredTransactions.map(item => (
+                        <tr key={item._id}>
+                          <td>{new Date(item.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                          <td><span className="reg-number">{item.registrationNumber}</span></td>
+                          <td><ExpenseBadge type={item.type === 'Toll' ? 'Toll' : item.type === 'Fuel' ? 'Fuel' : 'Other'} /></td>
+                          <td>{item.description}</td>
+                          <td>{item.liters > 0 ? `${item.liters} L` : '—'}</td>
+                          <td><strong>{formatCurrency(item.amount)}</strong></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {filteredTransactions.length === 0 && (
+                  <div className="vehicle-empty">
+                    <div className="trip-empty-art"><span className="material-symbols-outlined map">payments</span><i /></div>
+                    <h3>No transactions recorded</h3>
+                    <p>Change your filter selections or log a new fuel buy or toll expense.</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="transit-panel maintenance-timeline-panel flex flex-col gap-6" style={{ background: 'linear-gradient(180deg, rgba(30,41,59,.24), rgba(15,23,42,.38))' }}>
+                <div className="maintenance-panel-head"><div><p className="transit-kicker">Spend Analysis</p><h2>Category Breakdown</h2></div></div>
+                <div className="flex flex-col items-center justify-center p-6 gap-6">
+                  <div className="w-40 h-40 rounded-full flex items-center justify-center text-slate-100 font-black text-xl shadow-xl" style={{
+                    background: 'conic-gradient(#f59e0b 0% 65%, #38bdf8 65% 85%, #a78bfa 85% 100%)',
+                    boxShadow: 'inset 0 0 40px rgba(0,0,0,0.5)'
+                  }}>
+                    {Math.round((fuelSpend / (totalSpend || 1)) * 100)}% Fuel
+                  </div>
+                  <div className="w-full space-y-4">
+                    {breakdown.map((item, index) => {
+                      const pct = Math.round((item.amount / (totalSpend || 1)) * 100);
+                      const colors = ['#f59e0b', '#38bdf8', '#a78bfa'];
+                      return (
+                        <div key={item.type} className="flex justify-between items-center text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="w-3.5 h-3.5 rounded-full" style={{ background: colors[index] }} />
+                            <span className="text-slate-400 font-bold">{item.type === 'Other' ? 'Miscellaneous' : item.type}</span>
+                          </div>
+                          <div className="text-right">
+                            <strong className="text-slate-100">{formatCurrency(item.amount)}</strong>
+                            <span className="text-slate-500 block text-xs">{pct}% share</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </section>
+          </>
+        )}
       </main>
-      <AddExpenseDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onAdd={addExpense} />
+      <AddExpenseDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onAdd={handleAddTransaction} vehicles={vehicles} />
     </Layout>
   );
 };

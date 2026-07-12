@@ -112,3 +112,23 @@ exports.getOperationalCosts = async (req, res, next) => {
     return res.status(500).json({ error: 'An error occurred while aggregating operational costs.' });
   }
 };
+
+// Get all fuel logs
+exports.getFuelLogs = async (req, res, next) => {
+  try {
+    const fuelLogs = await FuelLog.find().populate('vehicleId', 'registrationNumber model');
+    return res.json(fuelLogs);
+  } catch (error) {
+    return res.status(500).json({ error: 'An error occurred while retrieving fuel logs.' });
+  }
+};
+
+// Get all expenses
+exports.getExpenses = async (req, res, next) => {
+  try {
+    const expenses = await Expense.find().populate('vehicleId', 'registrationNumber model');
+    return res.json(expenses);
+  } catch (error) {
+    return res.status(500).json({ error: 'An error occurred while retrieving expenses.' });
+  }
+};

@@ -12,7 +12,7 @@ export const financeAPI = {
   },
 
   getAllExpenses: async () => {
-    const response = await api.get('/finance/expenses');
+    const response = await api.get('/finance/expense');
     return response.data;
   },
 

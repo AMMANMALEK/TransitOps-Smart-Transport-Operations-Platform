@@ -1,21 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Layout from '../components/Layout';
+import { driversAPI } from '../api/drivers';
 
-const INITIAL_DRIVERS = [
-  { id: 1, name: 'Anika Rao', license: 'DL-KA-4829-2048', phone: '+91 98765 12048', safety: 96, expiry: '2027-08-18', trips: 1248, status: 'Available', licenseStatus: 'Valid', vehicle: 'KA-01-TX-2048', base: 'Bengaluru North Depot', initials: 'AR', tone: 'amber' },
-  { id: 2, name: 'Dev Mehta', license: 'DL-MH-7712-9981', phone: '+91 98220 77781', safety: 88, expiry: '2026-08-04', trips: 982, status: 'On Trip', licenseStatus: 'Expiring Soon', vehicle: 'MH-12-FL-7781', base: 'Pune Freight Hub', initials: 'DM', tone: 'blue' },
-  { id: 3, name: 'Maya Singh', license: 'DL-DL-6409-1188', phone: '+91 99111 91188', safety: 91, expiry: '2027-02-11', trips: 1126, status: 'Available', licenseStatus: 'Valid', vehicle: 'DL-09-UR-1188', base: 'Delhi Urban Terminal', initials: 'MS', tone: 'green' },
-  { id: 4, name: 'Rohan Iyer', license: 'DL-TN-2230-0432', phone: '+91 98400 10432', safety: 74, expiry: '2026-07-29', trips: 640, status: 'Off Duty', licenseStatus: 'Expiring Soon', vehicle: 'TN-22-LG-0432', base: 'Chennai South Yard', initials: 'RI', tone: 'red' },
-  { id: 5, name: 'Kabir Shah', license: 'DL-GJ-5510-3904', phone: '+91 97240 33904', safety: 82, expiry: '2026-12-09', trips: 804, status: 'On Trip', licenseStatus: 'Valid', vehicle: 'GJ-05-RT-3904', base: 'Surat Logistics Park', initials: 'KS', tone: 'purple' },
-  { id: 6, name: 'Noor Ali', license: 'DL-KA-7710-0097', phone: '+91 99009 80097', safety: 69, expiry: '2026-07-21', trips: 516, status: 'Suspended', licenseStatus: 'Under Review', vehicle: 'Unassigned', base: 'Bengaluru Service Bay', initials: 'NA', tone: 'red' },
-  { id: 7, name: 'Isha Nair', license: 'DL-TS-9207-6201', phone: '+91 97000 66201', safety: 94, expiry: '2027-05-27', trips: 1370, status: 'Available', licenseStatus: 'Valid', vehicle: 'TS-07-MB-6201', base: 'Hyderabad Metro Depot', initials: 'IN', tone: 'green' },
-  { id: 8, name: 'Arjun Menon', license: 'DL-RJ-1414-5520', phone: '+91 94600 55520', safety: 79, expiry: '2026-09-02', trips: 731, status: 'Off Duty', licenseStatus: 'Expiring Soon', vehicle: 'RJ-14-DR-5520', base: 'Jaipur Regional Yard', initials: 'AM', tone: 'blue' },
-];
-
-const LICENSE_STATUSES = ['All Licenses', 'Valid', 'Expiring Soon', 'Expired', 'Under Review'];
+const LICENSE_STATUSES = ['All Licenses', 'Valid', 'Expiring Soon', 'Expired'];
 const SCORE_FILTERS = ['All Scores', '90+ Excellent', '80-89 Good', '70-79 Watchlist', 'Below 70'];
 const CURRENT_STATUSES = ['Available', 'On Trip', 'Off Duty', 'Suspended'];
-const LICENSE_OPTIONS = ['Valid', 'Expiring Soon', 'Expired', 'Under Review'];
+const LICENSE_CATEGORIES = ['Heavy Duty', 'Light Commercial', 'Passenger Bus', 'Medium Truck'];
 
 const statusConfig = {
   Available: { cls: 'driver-badge available', icon: 'check_circle' },
@@ -28,7 +18,6 @@ const licenseConfig = {
   Valid: { cls: 'driver-badge valid', icon: 'verified' },
   'Expiring Soon': { cls: 'driver-badge warning', icon: 'schedule' },
   Expired: { cls: 'driver-badge danger', icon: 'report' },
-  'Under Review': { cls: 'driver-badge info', icon: 'policy' },
 };
 
 function scoreMatches(score, filter) {
@@ -40,26 +29,49 @@ function scoreMatches(score, filter) {
 }
 
 function initialsFor(name) {
+  if (!name) return 'DR';
   return name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
 }
 
 function daysUntil(dateString) {
+  if (!dateString) return 0;
   const today = new Date('2026-07-12T00:00:00');
-  const expiry = new Date(dateString + 'T00:00:00');
+  const expiry = new Date(dateString.split('T')[0] + 'T00:00:00');
   return Math.ceil((expiry - today) / 86400000);
 }
 
 function formatDate(dateString) {
-  return new Intl.DateTimeFormat('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(dateString + 'T00:00:00'));
+  if (!dateString) return 'N/A';
+  try {
+    return new Intl.DateTimeFormat('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(dateString.split('T')[0] + 'T00:00:00'));
+  } catch (e) {
+    return 'N/A';
+  }
+}
+
+function getLicenseStatus(expiryDate) {
+  const days = daysUntil(expiryDate);
+  if (days < 0) return 'Expired';
+  if (days <= 45) return 'Expiring Soon';
+  return 'Valid';
 }
 
 function isExpiringSoon(driver) {
-  const remaining = daysUntil(driver.expiry);
-  return driver.licenseStatus === 'Expiring Soon' || (remaining >= 0 && remaining <= 45);
+  const remaining = daysUntil(driver.licenseExpiryDate);
+  return remaining >= 0 && remaining <= 45;
+}
+
+function getTone(status) {
+  if (status === 'Suspended') return 'red';
+  if (status === 'On Trip') return 'blue';
+  if (status === 'Off Duty') return 'amber';
+  return 'green';
 }
 
 function DriverPhoto({ driver, large = false }) {
-  return <div className={'driver-photo ' + driver.tone + (large ? ' large' : '')} aria-hidden="true"><span>{driver.initials || initialsFor(driver.name)}</span></div>;
+  const tone = getTone(driver.status);
+  const initials = initialsFor(driver.name);
+  return <div className={'driver-photo ' + tone + (large ? ' large' : '')} aria-hidden="true"><span>{initials}</span></div>;
 }
 
 function DriverBadge({ value, type = 'status' }) {
@@ -80,21 +92,21 @@ function SafetyScore({ value }) {
 }
 
 function DriverCard({ driver, onOpen }) {
-  const remaining = daysUntil(driver.expiry);
+  const remaining = daysUntil(driver.licenseExpiryDate);
   return (
     <button type="button" className={'driver-card ' + (isExpiringSoon(driver) ? 'expiring' : '')} onClick={() => onOpen(driver)} aria-label={'Open profile for ' + driver.name}>
       <div className="driver-card-top">
         <DriverPhoto driver={driver} />
         <div>
           <h3>{driver.name}</h3>
-          <p>{driver.license}</p>
+          <p>{driver.licenseNumber}</p>
         </div>
         <DriverBadge value={driver.status} />
       </div>
       <div className="driver-card-metrics">
-        <div><span>Safety</span><strong>{driver.safety}</strong></div>
-        <div><span>Trips</span><strong>{driver.trips.toLocaleString('en-IN')}</strong></div>
-        <div><span>Expiry</span><strong>{formatDate(driver.expiry)}</strong></div>
+        <div><span>Safety</span><strong>{driver.safetyScore}</strong></div>
+        <div><span>Category</span><strong>{driver.licenseCategory}</strong></div>
+        <div><span>Expiry</span><strong>{formatDate(driver.licenseExpiryDate)}</strong></div>
       </div>
       {isExpiringSoon(driver) && <div className="driver-license-warning"><span className="material-symbols-outlined">priority_high</span>{remaining <= 0 ? 'License action overdue' : 'License expires in ' + remaining + ' days'}</div>}
     </button>
@@ -111,9 +123,10 @@ function EmptyDrivers() {
   );
 }
 
-function DriverProfilePanel({ driver, onClose }) {
+function DriverProfilePanel({ driver, onClose, onDelete }) {
   if (!driver) return null;
-  const remaining = daysUntil(driver.expiry);
+  const remaining = daysUntil(driver.licenseExpiryDate);
+  const licStatus = getLicenseStatus(driver.licenseExpiryDate);
   return (
     <div className="driver-panel-backdrop" role="presentation" onMouseDown={onClose}>
       <aside className="driver-profile-panel" role="dialog" aria-modal="true" aria-label="Driver profile" onMouseDown={event => event.stopPropagation()}>
@@ -124,37 +137,57 @@ function DriverProfilePanel({ driver, onClose }) {
         <div className="driver-profile-hero">
           <DriverPhoto driver={driver} large />
           <DriverBadge value={driver.status} />
-          <p>{driver.base}</p>
+          <p>{driver.region || 'Regional Depot'}</p>
         </div>
         <div className="driver-profile-grid">
-          <div><span>License Number</span><strong>{driver.license}</strong></div>
-          <div><span>Phone</span><strong>{driver.phone}</strong></div>
-          <div><span>Assigned Vehicle</span><strong>{driver.vehicle}</strong></div>
-          <div><span>Trips Completed</span><strong>{driver.trips.toLocaleString('en-IN')}</strong></div>
+          <div><span>License Number</span><strong>{driver.licenseNumber}</strong></div>
+          <div><span>Phone</span><strong>{driver.contactNumber}</strong></div>
+          <div><span>License Category</span><strong>{driver.licenseCategory}</strong></div>
+          <div><span>Region</span><strong>{driver.region || 'N/A'}</strong></div>
         </div>
         <div className="driver-profile-section">
-          <div className="driver-section-head"><h3>Safety Score</h3><strong>{driver.safety}/100</strong></div>
-          <SafetyScore value={driver.safety} />
+          <div className="driver-section-head"><h3>Safety Score</h3><strong>{driver.safetyScore}/100</strong></div>
+          <SafetyScore value={driver.safetyScore} />
         </div>
         <div className={'driver-profile-section ' + (isExpiringSoon(driver) ? 'license-alert' : '')}>
-          <div className="driver-section-head"><h3>License Status</h3><DriverBadge value={driver.licenseStatus} type="license" /></div>
-          <p>Expires {formatDate(driver.expiry)}{remaining >= 0 ? ' in ' + remaining + ' days.' : '. Renewal is overdue.'}</p>
+          <div className="driver-section-head"><h3>License Status</h3><DriverBadge value={licStatus} type="license" /></div>
+          <p>Expires {formatDate(driver.licenseExpiryDate)}{remaining >= 0 ? ' in ' + remaining + ' days.' : '. Renewal is overdue.'}</p>
         </div>
-        <div className="driver-panel-actions"><button type="button" className="transit-btn"><span className="material-symbols-outlined">chat</span>Message</button><button type="button" className="transit-btn transit-btn-primary"><span className="material-symbols-outlined">edit_square</span>Edit Profile</button></div>
+        <div className="driver-panel-actions">
+          <button type="button" className="transit-btn" style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,.3)' }} onClick={() => onDelete(driver._id)}>
+            <span className="material-symbols-outlined">delete</span>Delete Profile
+          </button>
+          <button type="button" className="transit-btn transit-btn-primary" onClick={onClose}>
+            <span className="material-symbols-outlined">done</span>Done
+          </button>
+        </div>
       </aside>
     </div>
   );
 }
 
 function AddDriverDrawer({ open, onClose, onAdd }) {
-  const [form, setForm] = useState({ name: '', license: '', phone: '', safety: 86, expiry: '2027-01-15', trips: 0, status: 'Available', licenseStatus: 'Valid' });
+  const [form, setForm] = useState({ name: '', licenseNumber: '', contactNumber: '', licenseCategory: 'Heavy Duty', safetyScore: 90, licenseExpiryDate: '2028-12-31', status: 'Available', region: 'North' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
   if (!open) return null;
 
-  const set = field => event => setForm(prev => ({ ...prev, [field]: field === 'safety' || field === 'trips' ? Number(event.target.value) : event.target.value }));
-  const submit = event => {
+  const set = field => event => setForm(prev => ({ ...prev, [field]: field === 'safetyScore' ? Number(event.target.value) : event.target.value }));
+  
+  const submit = async event => {
     event.preventDefault();
-    onAdd({ ...form, base: 'New Driver Pool', vehicle: 'Unassigned', initials: initialsFor(form.name), tone: 'amber' });
-    setForm({ name: '', license: '', phone: '', safety: 86, expiry: '2027-01-15', trips: 0, status: 'Available', licenseStatus: 'Valid' });
+    setError('');
+    setLoading(true);
+    try {
+      const response = await driversAPI.create(form);
+      onAdd(response.driver || response);
+      setForm({ name: '', licenseNumber: '', contactNumber: '', licenseCategory: 'Heavy Duty', safetyScore: 90, licenseExpiryDate: '2028-12-31', status: 'Available', region: 'North' });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to create driver profile');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -165,19 +198,20 @@ function AddDriverDrawer({ open, onClose, onAdd }) {
           <button type="button" onClick={onClose} aria-label="Close drawer"><span className="material-symbols-outlined">close</span></button>
         </div>
         <form onSubmit={submit} className="drawer-form">
+          {error && <div className="auth-error" role="alert"><span className="material-symbols-outlined">error</span>{error}</div>}
           <label>Driver Name<input required value={form.name} onChange={set('name')} placeholder="Driver full name" /></label>
-          <label>License Number<input required value={form.license} onChange={set('license')} placeholder="DL-KA-0000-0000" /></label>
-          <label>Phone<input required value={form.phone} onChange={set('phone')} placeholder="+91 90000 00000" /></label>
+          <label>License Number<input required value={form.licenseNumber} onChange={set('licenseNumber')} placeholder="DL-KA-0000-0000" /></label>
+          <label>Phone Number<input required value={form.contactNumber} onChange={set('contactNumber')} placeholder="+91 90000 00000" /></label>
           <div className="drawer-grid">
+            <label>License Category<select value={form.licenseCategory} onChange={set('licenseCategory')}>{LICENSE_CATEGORIES.map(item => <option key={item}>{item}</option>)}</select></label>
             <label>Status<select value={form.status} onChange={set('status')}>{CURRENT_STATUSES.map(item => <option key={item}>{item}</option>)}</select></label>
-            <label>License<select value={form.licenseStatus} onChange={set('licenseStatus')}>{LICENSE_OPTIONS.map(item => <option key={item}>{item}</option>)}</select></label>
           </div>
           <div className="drawer-grid">
-            <label>Expiry Date<input type="date" value={form.expiry} onChange={set('expiry')} /></label>
-            <label>Trips Completed<input type="number" min="0" value={form.trips} onChange={set('trips')} /></label>
+            <label>Expiry Date<input type="date" required value={form.licenseExpiryDate} onChange={set('licenseExpiryDate')} /></label>
+            <label>Region<input value={form.region} onChange={set('region')} placeholder="North / West" /></label>
           </div>
-          <label>Safety Score <span>{form.safety}</span><input className="range" type="range" min="0" max="100" value={form.safety} onChange={set('safety')} /></label>
-          <div className="drawer-actions"><button type="button" className="transit-btn" onClick={onClose}>Cancel</button><button type="submit" className="transit-btn transit-btn-primary"><span className="material-symbols-outlined">person_add</span>Add Driver</button></div>
+          <label>Safety Score <span>{form.safetyScore}</span><input className="range" type="range" min="0" max="100" value={form.safetyScore} onChange={set('safetyScore')} /></label>
+          <div className="drawer-actions"><button type="button" className="transit-btn" onClick={onClose}>Cancel</button><button type="submit" className="transit-btn transit-btn-primary" disabled={loading}>{loading ? 'Adding...' : 'Add Driver'}</button></div>
         </form>
       </aside>
     </div>
@@ -185,18 +219,37 @@ function AddDriverDrawer({ open, onClose, onAdd }) {
 }
 
 const DriverManagement = () => {
-  const [drivers, setDrivers] = useState(INITIAL_DRIVERS);
+  const [drivers, setDrivers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [licenseStatus, setLicenseStatus] = useState('All Licenses');
   const [scoreFilter, setScoreFilter] = useState('All Scores');
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
 
+  useEffect(() => {
+    loadDrivers();
+  }, []);
+
+  const loadDrivers = async () => {
+    try {
+      setLoading(true);
+      const data = await driversAPI.getAll();
+      setDrivers(data);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load drivers list');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredDrivers = useMemo(() => drivers.filter(driver => {
     const query = search.trim().toLowerCase();
-    const matchesQuery = !query || [driver.name, driver.license, driver.phone, driver.status, driver.base].some(value => String(value).toLowerCase().includes(query));
-    const matchesLicense = licenseStatus === 'All Licenses' || driver.licenseStatus === licenseStatus;
-    const matchesScore = scoreMatches(driver.safety, scoreFilter);
+    const licStatus = getLicenseStatus(driver.licenseExpiryDate);
+    const matchesQuery = !query || [driver.name, driver.licenseNumber, driver.contactNumber, driver.status, driver.region].some(value => String(value || '').toLowerCase().includes(query));
+    const matchesLicense = licenseStatus === 'All Licenses' || licStatus === licenseStatus;
+    const matchesScore = scoreMatches(driver.safetyScore, scoreFilter);
     return matchesQuery && matchesLicense && matchesScore;
   }), [drivers, search, licenseStatus, scoreFilter]);
 
@@ -206,10 +259,20 @@ const DriverManagement = () => {
   }, [filteredDrivers]);
 
   const addDriver = driver => {
-    const next = { ...driver, id: Date.now() };
-    setDrivers(prev => [next, ...prev]);
-    setSelectedDriver(next);
+    setDrivers(prev => [driver, ...prev]);
+    setSelectedDriver(driver);
     setAddOpen(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this driver profile? This action cannot be undone.')) return;
+    try {
+      await driversAPI.delete(id);
+      setDrivers(prev => prev.filter(d => d._id !== id));
+      setSelectedDriver(null);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete driver');
+    }
   };
 
   return (
@@ -223,58 +286,70 @@ const DriverManagement = () => {
           </div>
           <div className="vehicle-controls driver-controls">
             <label className="vehicle-search" aria-label="Search drivers"><span className="material-symbols-outlined">search</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search driver, license, phone" /></label>
-            <button type="button" className="transit-btn"><span className="material-symbols-outlined">tune</span>Filters</button>
             <select value={licenseStatus} onChange={event => setLicenseStatus(event.target.value)} aria-label="License status filter">{LICENSE_STATUSES.map(item => <option key={item}>{item}</option>)}</select>
             <select value={scoreFilter} onChange={event => setScoreFilter(event.target.value)} aria-label="Safety score filter">{SCORE_FILTERS.map(item => <option key={item}>{item}</option>)}</select>
             <button type="button" className="transit-btn transit-btn-primary" onClick={() => setAddOpen(true)}><span className="material-symbols-outlined">person_add</span>Add Driver</button>
           </div>
         </section>
 
-        {filteredDrivers.length === 0 ? <section className="transit-panel vehicle-table-card"><EmptyDrivers /></section> : <>
-          <section className="driver-feature-grid">
-            {featuredDrivers.map(driver => <DriverCard key={driver.id} driver={driver} onOpen={setSelectedDriver} />)}
+        {loading ? (
+          <section className="transit-panel vehicle-table-card" style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
+            <p>Loading driver roster...</p>
           </section>
+        ) : error ? (
+          <div className="auth-error" role="alert"><span className="material-symbols-outlined">error</span>{error}</div>
+        ) : filteredDrivers.length === 0 ? (
+          <section className="transit-panel vehicle-table-card"><EmptyDrivers /></section>
+        ) : (
+          <>
+            <section className="driver-feature-grid">
+              {featuredDrivers.map(driver => <DriverCard key={driver._id} driver={driver} onOpen={setSelectedDriver} />)}
+            </section>
 
-          <section className="transit-panel vehicle-table-card driver-table-card">
-            <div className="driver-table-head">
-              <div><p className="transit-kicker">Roster Overview</p><h2>Drivers</h2></div>
-              <span>{filteredDrivers.length} active records</span>
-            </div>
-            <div className="vehicle-table-wrap">
-              <table className="vehicle-table driver-table">
-                <thead>
-                  <tr>
-                    <th>Driver</th>
-                    <th>License Number</th>
-                    <th>Phone</th>
-                    <th>Safety Score</th>
-                    <th>License Expiry</th>
-                    <th>Trips Completed</th>
-                    <th>Current Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredDrivers.map(driver => (
-                    <tr key={driver.id} className={isExpiringSoon(driver) ? 'driver-row-expiring' : ''} onClick={() => setSelectedDriver(driver)}>
-                      <td><div className="driver-identity"><DriverPhoto driver={driver} /><div><strong>{driver.name}</strong><span>{driver.base}</span></div></div></td>
-                      <td><span className="reg-number">{driver.license}</span><DriverBadge value={driver.licenseStatus} type="license" /></td>
-                      <td>{driver.phone}</td>
-                      <td><SafetyScore value={driver.safety} /></td>
-                      <td><div className="expiry-cell"><strong>{formatDate(driver.expiry)}</strong>{isExpiringSoon(driver) && <span>{daysUntil(driver.expiry)} days left</span>}</div></td>
-                      <td>{driver.trips.toLocaleString('en-IN')}</td>
-                      <td><DriverBadge value={driver.status} /></td>
-                      <td><div className="row-actions"><button type="button" onClick={event => { event.stopPropagation(); setSelectedDriver(driver); }} aria-label={'Open ' + driver.name}><span className="material-symbols-outlined">visibility</span></button><button type="button" onClick={event => event.stopPropagation()} aria-label="More actions"><span className="material-symbols-outlined">more_horiz</span></button></div></td>
+            <section className="transit-panel vehicle-table-card driver-table-card">
+              <div className="driver-table-head">
+                <div><p className="transit-kicker">Roster Overview</p><h2>Drivers</h2></div>
+                <span>{filteredDrivers.length} active records</span>
+              </div>
+              <div className="vehicle-table-wrap">
+                <table className="vehicle-table driver-table">
+                  <thead>
+                    <tr>
+                      <th>Driver</th>
+                      <th>License Number</th>
+                      <th>Phone</th>
+                      <th>Safety Score</th>
+                      <th>License Expiry</th>
+                      <th>License Category</th>
+                      <th>Current Status</th>
+                      <th>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="vehicle-pagination"><p>Showing <strong>{filteredDrivers.length}</strong> of <strong>{drivers.length}</strong> drivers</p><div><button className="transit-btn" disabled>Previous</button><span>Page 1 of 1</span><button className="transit-btn" disabled>Next</button></div></div>
-          </section>
-        </>}
+                  </thead>
+                  <tbody>
+                    {filteredDrivers.map(driver => {
+                      const licStatus = getLicenseStatus(driver.licenseExpiryDate);
+                      return (
+                        <tr key={driver._id} className={isExpiringSoon(driver) ? 'driver-row-expiring' : ''} onClick={() => setSelectedDriver(driver)}>
+                          <td><div className="driver-identity"><DriverPhoto driver={driver} /><div><strong>{driver.name}</strong><span>{driver.region || 'Regional Depot'}</span></div></div></td>
+                          <td><span className="reg-number">{driver.licenseNumber}</span><DriverBadge value={licStatus} type="license" /></td>
+                          <td>{driver.contactNumber}</td>
+                          <td><SafetyScore value={driver.safetyScore} /></td>
+                          <td><div className="expiry-cell"><strong>{formatDate(driver.licenseExpiryDate)}</strong>{isExpiringSoon(driver) && <span>{daysUntil(driver.licenseExpiryDate)} days left</span>}</div></td>
+                          <td>{driver.licenseCategory}</td>
+                          <td><DriverBadge value={driver.status} /></td>
+                          <td><div className="row-actions"><button type="button" onClick={event => { event.stopPropagation(); setSelectedDriver(driver); }} aria-label={'Open ' + driver.name}><span className="material-symbols-outlined">visibility</span></button><button type="button" onClick={event => { event.stopPropagation(); handleDelete(driver._id); }} style={{ color: '#fca5a5' }} aria-label="Delete driver"><span className="material-symbols-outlined">delete</span></button></div></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="vehicle-pagination"><p>Showing <strong>{filteredDrivers.length}</strong> of <strong>{drivers.length}</strong> drivers</p><div><button className="transit-btn" disabled>Previous</button><span>Page 1 of 1</span><button className="transit-btn" disabled>Next</button></div></div>
+            </section>
+          </>
+        )}
       </main>
-      <DriverProfilePanel driver={selectedDriver} onClose={() => setSelectedDriver(null)} />
+      <DriverProfilePanel driver={selectedDriver} onClose={() => setSelectedDriver(null)} onDelete={handleDelete} />
       <AddDriverDrawer open={addOpen} onClose={() => setAddOpen(false)} onAdd={addDriver} />
     </Layout>
   );

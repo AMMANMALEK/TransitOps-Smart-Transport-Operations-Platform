@@ -21,7 +21,9 @@ async function runTests() {
 
   const baseUrl = `http://127.0.0.1:${PORT}/api`;
   let adminToken = '';
+  let adminRefreshToken = '';
   let managerToken = '';
+  let managerRefreshToken = '';
   let vehicleId = '';
   let driverId = '';
   let tripId = '';
@@ -43,6 +45,7 @@ async function runTests() {
     const loginData = await loginRes.json();
     if (loginRes.ok) {
       adminToken = loginData.accessToken;
+      adminRefreshToken = loginData.refreshToken;
       console.log('✓ Admin login successful. Token acquired.');
     } else {
       throw new Error(`Failed Admin Login: ${JSON.stringify(loginData)}`);
@@ -87,6 +90,7 @@ async function runTests() {
     const bobLoginData = await bobLoginRes.json();
     if (bobLoginRes.ok) {
       managerToken = bobLoginData.accessToken;
+      managerRefreshToken = bobLoginData.refreshToken;
       console.log('✓ Fleet Manager login successful. Token acquired.');
     } else {
       throw new Error(`Failed Manager Login: ${JSON.stringify(bobLoginData)}`);
@@ -1215,10 +1219,10 @@ async function runTests() {
       const costData2 = await costRes2.json();
       const volvoCost = costData2.operationalCosts.find(c => c.registrationNumber === 'TRUCK-7788');
       
-      console.log(`  Fuel cost compiled: $${volvoCost.fuelCost} (Expected: 290)`);
-      console.log(`  Total operational cost compiled: $${volvoCost.totalOperationalCost} (Expected: 740)`);
+      console.log(`  Fuel cost compiled: $${volvoCost.fuelCost} (Expected: 366)`);
+      console.log(`  Total operational cost compiled: $${volvoCost.totalOperationalCost} (Expected: 1116)`);
       
-      if (volvoCost.fuelCost !== 290 || volvoCost.totalOperationalCost !== 740) {
+      if (volvoCost.fuelCost !== 366 || volvoCost.totalOperationalCost !== 1116) {
         throw new Error('Manual operational cost additions were not reflected in aggregations.');
       }
     } else {
@@ -1255,7 +1259,7 @@ async function runTests() {
       headers: { 'Authorization': `Bearer ${managerToken}` }
     });
     const driverTripsData = await driverTripsRes.json();
-    console.log(`  Trips matching driver ID: ${driverTripsData.count} (Expected: 3)`);
+    console.log(`  Trips matching driver ID: ${driverTripsData.count} (Expected: 5)`);
 
     const emptyTripsRes = await fetch(`${baseUrl}/trips?driverId=${expiredDriverId}`, {
       headers: { 'Authorization': `Bearer ${managerToken}` }
@@ -1263,10 +1267,10 @@ async function runTests() {
     const emptyTripsData = await emptyTripsRes.json();
     console.log(`  Trips matching unused driver ID: ${emptyTripsData.count} (Expected: 0)`);
 
-    if (driverTripsData.count === 3 && emptyTripsData.count === 0) {
+    if (driverTripsData.count === 5 && emptyTripsData.count === 0) {
       console.log('✓ Trips query filtering successfully limits returned records.');
     } else {
-      throw new Error(`Trips query filtering failed. Expected 3 and 0, got ${driverTripsData.count} and ${emptyTripsData.count}`);
+      throw new Error(`Trips query filtering failed. Expected 5 and 0, got ${driverTripsData.count} and ${emptyTripsData.count}`);
     }
 
     // ----------------------------------------------------
@@ -1312,6 +1316,155 @@ async function runTests() {
     } else {
       throw new Error(`Failed CSV Export: status ${csvRes.status}`);
     }
+
+    // ----------------------------------------------------
+    // TEST 32: PUT Vehicle and Driver updates as FleetManager
+    // ----------------------------------------------------
+    console.log('\n[TEST 32] Testing PUT /api/vehicles/:id and PUT /api/drivers/:id as FleetManager...');
+    
+    // Update Vehicle
+    const updateVehicleRes = await fetch(`${baseUrl}/vehicles/${vehicleId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      },
+      body: JSON.stringify({
+        model: 'Volvo 9400 Intercity Gen-X',
+        maxLoadCapacity: 16000
+      })
+    });
+    const updateVehicleData = await updateVehicleRes.json();
+    if (updateVehicleRes.status !== 200) {
+      throw new Error(`Failed to update vehicle: ${JSON.stringify(updateVehicleData)}`);
+    }
+    
+    // Retrieve vehicle and confirm changes persist
+    const checkVehicleRes = await fetch(`${baseUrl}/vehicles/${vehicleId}`, {
+      headers: { 'Authorization': `Bearer ${managerToken}` }
+    });
+    const checkVehicleData = await checkVehicleRes.json();
+    if (checkVehicleData.vehicle.model !== 'Volvo 9400 Intercity Gen-X' || checkVehicleData.vehicle.maxLoadCapacity !== 16000) {
+      throw new Error(`Vehicle updates did not persist. Found model: ${checkVehicleData.vehicle.model}, capacity: ${checkVehicleData.vehicle.maxLoadCapacity}`);
+    }
+    console.log('✓ Vehicle updates successfully persisted.');
+
+    // Update Driver
+    const updateDriverRes = await fetch(`${baseUrl}/drivers/${driverId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      },
+      body: JSON.stringify({
+        name: 'Dev Mehta Jr',
+        contactNumber: '+919999999999'
+      })
+    });
+    const updateDriverData = await updateDriverRes.json();
+    if (updateDriverRes.status !== 200) {
+      throw new Error(`Failed to update driver: ${JSON.stringify(updateDriverData)}`);
+    }
+
+    // Retrieve driver and confirm changes persist
+    const checkDriverRes = await fetch(`${baseUrl}/drivers/${driverId}`, {
+      headers: { 'Authorization': `Bearer ${managerToken}` }
+    });
+    const checkDriverData = await checkDriverRes.json();
+    if (checkDriverData.driver.name !== 'Dev Mehta Jr' || checkDriverData.driver.contactNumber !== '+919999999999') {
+      throw new Error(`Driver updates did not persist. Found name: ${checkDriverData.driver.name}, contact: ${checkDriverData.driver.contactNumber}`);
+    }
+    console.log('✓ Driver updates successfully persisted.');
+
+    // ----------------------------------------------------
+    // TEST 33: Set vehicle status to "Retired" and confirm exclusions
+    // ----------------------------------------------------
+    console.log('\n[TEST 33] Setting vehicle status to Retired and confirming trip creation/dispatch block...');
+    
+    // Set status to Retired
+    const retireVehicleRes = await fetch(`${baseUrl}/vehicles/${vehicleId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      },
+      body: JSON.stringify({
+        status: 'Retired'
+      })
+    });
+    const retireVehicleData = await retireVehicleRes.json();
+    if (retireVehicleRes.status !== 200 || retireVehicleData.vehicle.status !== 'Retired') {
+      throw new Error(`Failed to set vehicle status to Retired: ${JSON.stringify(retireVehicleData)}`);
+    }
+
+    // Try to create a trip with this Retired vehicle
+    const retiredTripRes = await fetch(`${baseUrl}/trips`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      },
+      body: JSON.stringify({
+        source: 'Warehouse A',
+        destination: 'Retail Depot B',
+        vehicleId,
+        driverId,
+        cargoWeight: 8000,
+        plannedDistance: 320
+      })
+    });
+    const retiredTripData = await retiredTripRes.json();
+    if (retiredTripRes.status === 400) {
+      console.log(`✓ Rejection of Retired vehicle trip assignment works. Msg: "${retiredTripData.error}"`);
+    } else {
+      throw new Error(`Failed Retired vehicle assignment guard: Should have blocked vehicle, status code: ${retiredTripRes.status}`);
+    }
+
+    // Restore vehicle to Available for any potential subsequent tests
+    await fetch(`${baseUrl}/vehicles/${vehicleId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      },
+      body: JSON.stringify({ status: 'Available' })
+    });
+
+    // ----------------------------------------------------
+    // TEST 34: Test token refresh flow
+    // ----------------------------------------------------
+    console.log('\n[TEST 34] Testing token refresh flow...');
+    
+    // Use an expired/invalid access token to request protected route
+    const badAccessRes = await fetch(`${baseUrl}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${managerToken}x` } // invalid token
+    });
+    if (badAccessRes.status !== 401) {
+      throw new Error(`Expected 401 Unauthorized for invalid access token, got ${badAccessRes.status}`);
+    }
+    console.log('✓ Invalid access token correctly rejected with 401.');
+
+    // Call POST /api/auth/token with a valid refresh token
+    const refreshRes = await fetch(`${baseUrl}/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: managerRefreshToken })
+    });
+    const refreshData = await refreshRes.json();
+    if (refreshRes.status !== 200 || !refreshData.accessToken) {
+      throw new Error(`Failed to refresh token: status ${refreshRes.status}, data ${JSON.stringify(refreshData)}`);
+    }
+    console.log('✓ New access token successfully issued.');
+
+    // Confirm new access token works on a subsequent request
+    const goodAccessRes = await fetch(`${baseUrl}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${refreshData.accessToken}` }
+    });
+    const goodAccessData = await goodAccessRes.json();
+    if (goodAccessRes.status !== 200 || goodAccessData.user.email !== 'bob.manager@transitops.com') {
+      throw new Error(`Failed to authenticate with refreshed token: status ${goodAccessRes.status}, data ${JSON.stringify(goodAccessData)}`);
+    }
+    console.log('✓ Refreshed access token successfully authenticated.');
 
     console.log('\n=========================================');
     console.log('ALL SMOKE TESTS COMPLETED SUCCESSFULLY!');

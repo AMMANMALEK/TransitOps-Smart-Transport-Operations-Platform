@@ -4,7 +4,7 @@ import { useAppState } from '../context/StateContext';
 import ConfirmModal from './ConfirmModal';
 
 const Header = ({ title }) => {
-  const { user, logout, approvals } = useAppState();
+  const { user, logout, approvals = [] } = useAppState();
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
