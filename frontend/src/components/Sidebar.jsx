@@ -62,7 +62,7 @@ const Sidebar = ({ collapsed: controlledCollapsed, onToggleCollapsed }) => {
 
   return (
     <>
-    <aside className="sidebar-container fixed left-0 top-0 z-20 h-screen" style={{ width: 'var(--sidebar-width)' }}>
+      <aside className="sidebar-container fixed left-0 top-0 z-20 h-screen" style={{ width: 'var(--sidebar-width)' }}>
       <div className="flex h-full flex-col" style={{ background: 'linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(8,13,23,0.98) 100%)', borderRight: '1px solid rgba(148,163,184,0.14)', boxShadow: '20px 0 60px rgba(0,0,0,0.28)' }}>
         <div className="flex items-center justify-between px-4 py-4 flex-shrink-0" style={{ borderBottom: '1px solid rgba(148,163,184,0.13)', minHeight: 72 }}>
           <div className="flex items-center gap-3 overflow-hidden">
@@ -120,6 +120,7 @@ const Sidebar = ({ collapsed: controlledCollapsed, onToggleCollapsed }) => {
       danger={true}
     />
   </>
+  );
 };
 
 export default Sidebar;
