@@ -23,10 +23,10 @@ const alerts = [
 ];
 
 const tones = {
-  amber: { color: '#fbbf24', bg: 'rgba(245,158,11,0.13)' },
-  blue:  { color: '#7dd3fc', bg: 'rgba(56,189,248,0.13)' },
-  green: { color: '#86efac', bg: 'rgba(34,197,94,0.13)' },
-  red:   { color: '#fca5a5', bg: 'rgba(239,68,68,0.13)' },
+  amber: { color: '#d97706', bg: 'rgba(245,158,11,0.15)' },
+  blue:  { color: '#0284c7', bg: 'rgba(56,189,248,0.15)' },
+  green: { color: '#16a34a', bg: 'rgba(34,197,94,0.15)' },
+  red:   { color: '#dc2626', bg: 'rgba(239,68,68,0.12)' },
 };
 
 // ─── KPI Card ────────────────────────────────────────────────────────────────
@@ -39,7 +39,7 @@ function KpiCard({ item }) {
       </div>
       <div className="db-kpi-body">
         <p className="db-kpi-label">{item.label}</p>
-        <strong className="db-kpi-value" style={{ color: '#fff' }}>{item.value}</strong>
+        <strong className="db-kpi-value">{item.value}</strong>
         <span className="db-kpi-sub">{item.sub}</span>
       </div>
     </article>
@@ -141,11 +141,11 @@ const Dashboard = () => {
         .db-hero {
           display: flex; justify-content: space-between; align-items: center;
           gap: 20px; padding: 24px 28px;
-          background: linear-gradient(135deg, rgba(17,24,39,.94), rgba(15,23,42,.80)),
-                      radial-gradient(circle at 80% 20%, rgba(245,158,11,.16), transparent 30%);
+          background: linear-gradient(135deg, #f8fafc, #f1f5f9),
+                      radial-gradient(circle at 80% 20%, rgba(245,158,11,.10), transparent 30%);
         }
-        .db-hero-title { margin: 6px 0 0; color: #fff; font-size: clamp(22px, 3vw, 32px); font-weight: 950; line-height: 1.1; }
-        .db-hero-sub   { margin: 6px 0 0; color: #94a3b8; font-size: 14px; line-height: 1.55; }
+        .db-hero-title { margin: 6px 0 0; color: #0f172a; font-size: clamp(26px, 3vw, 38px); font-weight: 950; line-height: 1.1; }
+        .db-hero-sub   { margin: 6px 0 0; color: #475569; font-size: 15px; line-height: 1.55; }
         .db-hero-actions { flex-shrink: 0; }
 
         /* KPI */
@@ -154,36 +154,36 @@ const Dashboard = () => {
         .db-kpi-icon { width: 48px; height: 48px; border-radius: 16px; display: grid; place-items: center; flex-shrink: 0; }
         .db-kpi-icon span { font-size: 24px; font-variation-settings: 'FILL' 1; }
         .db-kpi-body { min-width: 0; }
-        .db-kpi-label { margin: 0; color: #94a3b8; font-size: 12px; font-weight: 800; }
-        .db-kpi-value { display: block; color: #fff; font-size: 28px; font-weight: 950; line-height: 1.1; margin: 2px 0; }
-        .db-kpi-sub   { color: #64748b; font-size: 11px; font-weight: 700; }
+        .db-kpi-label { margin: 0; color: #64748b; font-size: 13px; font-weight: 800; }
+        .db-kpi-value { display: block; color: #0f172a; font-size: 36px; font-weight: 950; line-height: 1.1; margin: 4px 0 2px; }
+        .db-kpi-sub   { color: #64748b; font-size: 12px; font-weight: 700; }
 
         /* Grid */
         .db-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .db-card { padding: 22px; }
         .db-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
-        .db-card-head h3 { margin: 0; color: #fff; font-size: 15px; font-weight: 900; }
-        .db-card-head p  { margin: 3px 0 0; color: #94a3b8; font-size: 12px; font-weight: 700; }
+        .db-card-head h3 { margin: 0; color: #0f172a; font-size: 17px; font-weight: 900; }
+        .db-card-head p  { margin: 3px 0 0; color: #64748b; font-size: 13px; font-weight: 700; }
 
         /* Trips */
         .db-trip-list { display: flex; flex-direction: column; gap: 10px; }
-        .db-trip-row { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; padding: 12px; border-radius: 14px; background: rgba(15,23,42,.56); border: 1px solid rgba(148,163,184,.11); }
-        .db-trip-icon { width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; background: rgba(245,158,11,.11); color: #fbbf24; }
+        .db-trip-row { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; padding: 12px; border-radius: 14px; background: #ffffff; border: 1px solid rgba(148,163,184,.25); }
+        .db-trip-icon { width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; background: rgba(245,158,11,.15); color: #d97706; }
         .db-trip-icon span { font-size: 20px; }
-        .db-trip-main strong { display: block; color: #fff; font-size: 13px; font-weight: 800; }
-        .db-trip-main span  { color: #94a3b8; font-size: 11px; font-weight: 700; }
+        .db-trip-main strong { display: block; color: #0f172a; font-size: 14px; font-weight: 800; }
+        .db-trip-main span  { color: #64748b; font-size: 12px; font-weight: 700; }
         .db-trip-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-        .db-trip-meta span { color: #94a3b8; font-size: 11px; font-weight: 700; }
+        .db-trip-meta span { color: #64748b; font-size: 12px; font-weight: 700; }
 
         /* Alerts */
         .db-alert-list { display: flex; flex-direction: column; gap: 10px; }
-        .db-alert { display: grid; grid-template-columns: 38px 1fr; gap: 12px; padding: 13px; border-radius: 14px; border: 1px solid rgba(148,163,184,.12); background: rgba(15,23,42,.56); align-items: start; }
+        .db-alert { display: grid; grid-template-columns: 38px 1fr; gap: 12px; padding: 13px; border-radius: 14px; border: 1px solid rgba(148,163,184,.25); background: #ffffff; align-items: start; }
         .db-alert > span { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-size: 20px; font-variation-settings: 'FILL' 1; }
-        .db-alert.amber > span { color: #fbbf24; background: rgba(245,158,11,.12); }
-        .db-alert.red   > span { color: #fca5a5; background: rgba(239,68,68,.12); }
-        .db-alert.green > span { color: #86efac; background: rgba(34,197,94,.12); }
-        .db-alert strong { display: block; color: #fff; font-size: 13px; font-weight: 800; }
-        .db-alert p { margin: 3px 0 0; color: #94a3b8; font-size: 12px; line-height: 1.45; }
+        .db-alert.amber > span { color: #d97706; background: rgba(245,158,11,.15); }
+        .db-alert.red   > span { color: #dc2626; background: rgba(239,68,68,.12); }
+        .db-alert.green > span { color: #16a34a; background: rgba(34,197,94,.12); }
+        .db-alert strong { display: block; color: #0f172a; font-size: 14px; font-weight: 800; }
+        .db-alert p { margin: 3px 0 0; color: #475569; font-size: 13px; line-height: 1.45; }
 
         /* Responsive */
         @media (max-width: 900px) {

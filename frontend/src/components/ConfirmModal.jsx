@@ -41,7 +41,7 @@ const ConfirmModal = ({
 
         .cm-backdrop {
           position: fixed; inset: 0; z-index: 9999;
-          background: rgba(2, 6, 23, 0.72);
+          background: rgba(241, 245, 249, 0.62);
           backdrop-filter: blur(6px);
           display: flex; align-items: center; justify-content: center;
           animation: cmFadeIn .18s ease;
@@ -49,11 +49,11 @@ const ConfirmModal = ({
         }
         .cm-card {
           width: 100%; max-width: 400px;
-          background: linear-gradient(180deg, #111827, #0b1220);
-          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: linear-gradient(180deg, #ffffff, #f8fafc);
+          border: 1px solid rgba(148, 163, 184, 0.25);
           border-radius: 24px;
           padding: 32px;
-          box-shadow: 0 40px 100px rgba(0,0,0,0.60);
+          box-shadow: 0 20px 60px rgba(0,0,0,0.08);
           animation: cmSlideUp .22s cubic-bezier(.22,1,.36,1);
         }
         .cm-icon-wrap {
@@ -65,8 +65,8 @@ const ConfirmModal = ({
         .cm-icon-wrap.danger span { color: #f87171; font-size: 26px; font-variation-settings: 'FILL' 1; }
         .cm-icon-wrap.neutral { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.22); }
         .cm-icon-wrap.neutral span { color: #fbbf24; font-size: 26px; font-variation-settings: 'FILL' 1; }
-        .cm-card h3 { margin: 0; color: #f8fafc; font-size: 20px; font-weight: 900; }
-        .cm-card p  { margin: 8px 0 0; color: #94a3b8; font-size: 14px; line-height: 1.55; }
+        .cm-card h3 { margin: 0; color: #0f172a; font-size: 20px; font-weight: 900; }
+        .cm-card p  { margin: 8px 0 0; color: #64748b; font-size: 14px; line-height: 1.55; }
         .cm-actions {
           display: flex; gap: 12px; margin-top: 28px;
         }
@@ -78,23 +78,23 @@ const ConfirmModal = ({
         .cm-btn:hover { transform: translateY(-1px); }
         .cm-btn:active { transform: scale(.98); }
         .cm-cancel {
-          background: rgba(15,23,42,0.8);
-          border: 1px solid rgba(148,163,184,0.18);
-          color: #cbd5e1;
+          background: #ffffff;
+          border: 1px solid rgba(148,163,184,0.32);
+          color: #475569;
         }
-        .cm-cancel:hover { background: rgba(15,23,42,1); color: #f8fafc; }
+        .cm-cancel:hover { background: #f1f5f9; color: #0f172a; }
         .cm-confirm-danger {
           background: linear-gradient(135deg, #ef4444, #dc2626);
           color: #fff;
-          box-shadow: 0 12px 28px rgba(239,68,68,0.28);
+          box-shadow: 0 8px 24px rgba(239,68,68,0.22);
         }
-        .cm-confirm-danger:hover { box-shadow: 0 16px 36px rgba(239,68,68,0.38); }
+        .cm-confirm-danger:hover { box-shadow: 0 12px 28px rgba(239,68,68,0.32); }
         .cm-confirm-neutral {
           background: linear-gradient(135deg, #f59e0b, #fbbf24);
-          color: #111827;
-          box-shadow: 0 12px 28px rgba(245,158,11,0.24);
+          color: #0f172a;
+          box-shadow: 0 8px 24px rgba(245,158,11,0.20);
         }
-        .cm-confirm-neutral:hover { box-shadow: 0 16px 36px rgba(245,158,11,0.34); }
+        .cm-confirm-neutral:hover { box-shadow: 0 12px 28px rgba(245,158,11,0.28); }
       `}</style>
 
       {/* Backdrop */}
