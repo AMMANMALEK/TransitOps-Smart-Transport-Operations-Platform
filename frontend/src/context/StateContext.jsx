@@ -1,8 +1,46 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from 'react';
-import { authAPI } from '../api/auth';
 
 const StateContext = createContext();
+
+// Mock users for offline login
+const MOCK_USERS = [
+  {
+    id: 'USR-001',
+    name: 'Admin User',
+    email: 'admin@transitops.com',
+    password: 'Admin@123',
+    role: 'fleet_manager',
+  },
+  {
+    id: 'USR-002',
+    name: 'Rahul Sharma',
+    email: 'fleet@transitops.com',
+    password: 'Fleet@123',
+    role: 'fleet_manager',
+  },
+  {
+    id: 'USR-003',
+    name: 'Dev Mehta',
+    email: 'driver@transitops.com',
+    password: 'Driver@123',
+    role: 'driver',
+  },
+  {
+    id: 'USR-004',
+    name: 'Priya Nair',
+    email: 'safety@transitops.com',
+    password: 'Safety@123',
+    role: 'safety_officer',
+  },
+  {
+    id: 'USR-005',
+    name: 'Meera Kapoor',
+    email: 'finance@transitops.com',
+    password: 'Finance@123',
+    role: 'financial_analyst',
+  },
+];
 
 export const StateProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
@@ -16,7 +54,9 @@ export const StateProvider = ({ children }) => {
   });
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  
+  // Mock approvals (empty for now)
+  const approvals = [];
 
   // Persist user to localStorage
   useEffect(() => {
@@ -27,88 +67,40 @@ export const StateProvider = ({ children }) => {
     }
   }, [user]);
 
-  // Login with backend API
-  const login = async (email, password) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await authAPI.login(email, password);
-      
-      // Store tokens
-      localStorage.setItem('accessToken', response.accessToken);
-      localStorage.setItem('refreshToken', response.refreshToken);
-      
-      // Store user info
-      const loggedUser = {
-        id: response.user.id,
-        name: response.user.name,
-        email: response.user.email,
-        role: response.user.role,
-      };
-      
-      setUser(loggedUser);
-      return loggedUser;
-    } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Login failed';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
+  // Mock login - no backend required
+  const login = (email, password) => {
+    const foundUser = MOCK_USERS.find(
+      u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+    );
+
+    if (!foundUser) {
+      return null;
     }
+
+    const loggedUser = {
+      id: foundUser.id,
+      name: foundUser.name,
+      email: foundUser.email,
+      role: foundUser.role,
+    };
+
+    setUser(loggedUser);
+    return loggedUser;
   };
 
   // Logout
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
     localStorage.removeItem('vb_user');
   };
-
-  // Register (for vendor self-registration if needed)
-  const register = async (userData) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await authAPI.register(userData);
-      
-      // Store tokens
-      localStorage.setItem('accessToken', response.accessToken);
-      localStorage.setItem('refreshToken', response.refreshToken);
-      
-      // Store user info
-      const registeredUser = {
-        id: response.user.id,
-        name: response.user.name,
-        email: response.user.email,
-        role: response.user.role,
-      };
-      
-      setUser(registeredUser);
-      return registeredUser;
-    } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Registration failed';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Clear error
-  const clearError = () => setError(null);
 
   return (
     <StateContext.Provider value={{
       user,
       loading,
-      error,
       login,
       logout,
-      register,
-      clearError,
+      approvals, // Add this for Header component
     }}>
       {children}
     </StateContext.Provider>

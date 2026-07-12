@@ -8,14 +8,14 @@ const ALL_NAV = [
     { name: 'Dashboard', path: '/dashboard', icon: 'monitoring', roles: ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'] },
   ]},
   { section: 'Operations', items: [
-    { name: 'Vehicle Registry', path: '/vehicles', icon: 'directions_bus', roles: ['fleet_manager', 'safety_officer'] },
-    { name: 'Driver Management', path: '/drivers', icon: 'badge', roles: ['fleet_manager', 'safety_officer'] },
-    { name: 'Trip Management', path: '/trips', icon: 'route', roles: ['fleet_manager', 'driver', 'safety_officer'] },
-    { name: 'Maintenance', path: '/maintenance', icon: 'engineering', roles: ['fleet_manager'] },
-    { name: 'Fuel & Expenses', path: '/expenses', icon: 'payments', roles: ['fleet_manager', 'financial_analyst'] },
+    { name: 'Vehicle Registry', path: '/vehicles', icon: 'directions_bus', roles: ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'] },
+    { name: 'Driver Management', path: '/drivers', icon: 'badge', roles: ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'] },
+    { name: 'Trip Management', path: '/trips', icon: 'route', roles: ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'] },
+    { name: 'Maintenance', path: '/maintenance', icon: 'engineering', roles: ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'] },
+    { name: 'Fuel & Expenses', path: '/expenses', icon: 'payments', roles: ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'] },
   ]},
   { section: 'Intelligence', items: [
-    { name: 'Reports & Analytics', path: '/analytics', icon: 'insights', roles: ['fleet_manager', 'safety_officer', 'financial_analyst'] },
+    { name: 'Reports & Analytics', path: '/analytics', icon: 'insights', roles: ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'] },
   ]},
 ];
 
@@ -63,26 +63,26 @@ const Sidebar = ({ collapsed: controlledCollapsed, onToggleCollapsed }) => {
   return (
     <>
       <aside className="sidebar-container fixed left-0 top-0 z-20 h-screen" style={{ width: 'var(--sidebar-width)' }}>
-      <div className="flex h-full flex-col" style={{ background: '#ffffff', borderRight: '1px solid rgba(148,163,184,0.25)', boxShadow: '4px 0 24px rgba(0,0,0,0.03)' }}>
+      <div className="flex h-full flex-col" style={{ background: 'var(--bg-surface-solid)', borderRight: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)' }}>
         <div 
-          className={`flex items-center ${collapsed ? 'justify-center cursor-pointer hover:bg-slate-100/80' : 'justify-between px-4'} py-4 flex-shrink-0 transition-colors`} 
-          style={{ borderBottom: '1px solid rgba(148,163,184,0.18)', minHeight: 72 }}
+          className={`flex items-center ${collapsed ? 'justify-center cursor-pointer hover:bg-slate-800/50' : 'justify-between px-4'} py-4 flex-shrink-0 transition-colors`} 
+          style={{ borderBottom: '1px solid var(--border-subtle)', minHeight: 'var(--header-height)' }}
           onClick={collapsed ? toggle : undefined}
           title={collapsed ? 'Expand sidebar' : undefined}
         >
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #6366f1, #818cf8)', boxShadow: '0 14px 32px rgba(99,102,241,0.28)' }}>
-              <span className="material-symbols-outlined text-white" style={{ fontSize: 24, fontVariationSettings: "'FILL' 1" }}>directions_bus</span>
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-primary-hover))', boxShadow: 'var(--brand-shadow)' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 24, fontVariationSettings: "'FILL' 1", color: 'var(--brand-primary-text-on)' }}>directions_bus</span>
             </div>
             {!collapsed && (
               <div className="overflow-hidden">
-                <span className="text-slate-900 font-black text-[17px] tracking-tight whitespace-nowrap">TransitOps</span>
-                <p className="text-slate-500 text-[11px] font-[650] leading-tight whitespace-nowrap mt-[2px]">Smart Transport Platform</p>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '17px', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>TransitOps</span>
+                <p style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, lineHeight: '1.2', whiteSpace: 'nowrap', marginTop: '2px' }}>Smart Transport Platform</p>
               </div>
             )}
           </div>
           {!collapsed && (
-            <button onClick={(e) => { e.stopPropagation(); toggle(); }} className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-900 transition-all" style={{ background: '#f8fafc', border: '1px solid rgba(148,163,184,0.25)' }} title="Collapse sidebar">
+            <button onClick={(e) => { e.stopPropagation(); toggle(); }} className="w-9 h-9 rounded-xl flex items-center justify-center transition-all" style={{ background: 'var(--bg-toolbar)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }} title="Collapse sidebar" onMouseOver={e => e.currentTarget.style.color = 'var(--text-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-muted)'}>
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>keyboard_double_arrow_left</span>
             </button>
           )}
@@ -94,12 +94,12 @@ const Sidebar = ({ collapsed: controlledCollapsed, onToggleCollapsed }) => {
             const visibleItems = section.items.filter(item => item.roles.includes(role));
             if (!visibleItems.length) return null;
             return <div key={section.section} className="mb-4">
-              {!collapsed && <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.18em] px-3 py-2">{section.section}</p>}
+              {!collapsed && <p style={{ color: 'var(--text-muted)', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', padding: '0 12px 8px' }}>{section.section}</p>}
               <ul className="space-y-1">
                 {visibleItems.map(item => {
                   const badge = getBadge(item);
-                  return <li key={`${item.path}-${item.name}`}><NavLink to={item.path} title={collapsed ? item.name : undefined} className={({ isActive }) => `relative flex items-center gap-3 rounded-2xl px-3 py-3 transition-all duration-150 group ${isActive ? 'text-slate-900' : 'text-slate-500 hover:text-slate-900'}`} style={({ isActive }) => ({ background: isActive ? 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(129,140,248,0.06))' : 'transparent', border: isActive ? '1px solid rgba(99,102,241,0.35)' : '1px solid transparent' })}>
-                    {({ isActive }) => <><span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 21, color: isActive ? '#6366f1' : 'inherit', fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}>{item.icon}</span>{!collapsed && <span className="text-[13px] font-bold flex-1 truncate">{item.name}</span>}{!collapsed && badge > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[19px] text-center">{badge}</span>}{collapsed && badge > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />}</>}
+                  return <li key={`${item.path}-${item.name}`}><NavLink to={item.path} title={collapsed ? item.name : undefined} className={({ isActive }) => `relative flex items-center gap-3 rounded-2xl px-3 py-3 transition-all duration-150 group ${isActive ? '' : ''}`} style={({ isActive }) => ({ background: isActive ? 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(129,140,248,0.06))' : 'transparent', border: isActive ? '1px solid var(--border-focus)' : '1px solid transparent', color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' })}>
+                    {({ isActive }) => <><span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 21, color: isActive ? 'var(--brand-primary)' : 'inherit', fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}>{item.icon}</span>{!collapsed && <span className="text-[13px] font-bold flex-1 truncate">{item.name}</span>}{!collapsed && badge > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[19px] text-center">{badge}</span>}{collapsed && badge > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />}</>}
                   </NavLink></li>;
                 })}
               </ul>
@@ -107,8 +107,8 @@ const Sidebar = ({ collapsed: controlledCollapsed, onToggleCollapsed }) => {
           })}
         </nav>
 
-        <div className="px-3 pb-4 flex-shrink-0" style={{ borderTop: '1px solid rgba(148,163,184,0.18)', paddingTop: 12 }}>
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 rounded-2xl px-3 py-3 text-slate-500 hover:text-red-600 transition-all" style={{ background: '#f8fafc', border: '1px solid rgba(148,163,184,0.25)' }} title={collapsed ? 'Sign Out' : undefined}>
+        <div className="px-3 pb-4 flex-shrink-0" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 rounded-2xl px-3 py-3 transition-all" style={{ background: 'var(--bg-toolbar)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }} title={collapsed ? 'Sign Out' : undefined} onMouseOver={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; }} onMouseOut={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}>
             <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 20 }}>logout</span>{!collapsed && <span className="text-[13px] font-bold">Sign Out</span>}
           </button>
         </div>

@@ -1,6 +1,16 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import Layout from '../components/Layout';
-import { vehiclesAPI } from '../api/vehicles';
+
+const MOCK_VEHICLES = [
+  { _id: '1', registrationNumber: 'KA-01-TX-2048', model: 'Volvo 9400 Intercity', type: 'Bus', capacity: '52 seats', assignedDriver: 'Anika Rao', fuelLevel: 84, status: 'Available' },
+  { _id: '2', registrationNumber: 'MH-12-FL-7781', model: 'Tata Prima 5530', type: 'Truck', capacity: '32 tons', assignedDriver: 'Dev Mehta', fuelLevel: 61, status: 'On Trip' },
+  { _id: '3', registrationNumber: 'DL-09-UR-1188', model: 'Ashok Leyland Lynx', type: 'Bus', capacity: '41 seats', assignedDriver: 'Maya Singh', fuelLevel: 28, status: 'Maintenance' },
+  { _id: '4', registrationNumber: 'TN-22-LG-0432', model: 'Force Traveller 3350', type: 'Van', capacity: '18 seats', assignedDriver: 'Rohan Iyer', fuelLevel: 72, status: 'Available' },
+  { _id: '5', registrationNumber: 'GJ-05-RT-3904', model: 'Eicher Pro 3015', type: 'Truck', capacity: '16 tons', assignedDriver: 'Kabir Shah', fuelLevel: 45, status: 'On Trip' },
+  { _id: '6', registrationNumber: 'KA-03-SV-0097', model: 'Mahindra Bolero Camper', type: 'Service', capacity: '1.5 tons', assignedDriver: 'Noor Ali', fuelLevel: 12, status: 'Retired' },
+  { _id: '7', registrationNumber: 'TS-07-MB-6201', model: 'Mercedes-Benz City Bus', type: 'Bus', capacity: '48 seats', assignedDriver: 'Isha Nair', fuelLevel: 93, status: 'Available' },
+  { _id: '8', registrationNumber: 'RJ-14-DR-5520', model: 'Tata Winger Staff', type: 'Van', capacity: '15 seats', assignedDriver: 'Arjun Menon', fuelLevel: 57, status: 'Maintenance' },
+];
 
 const VEHICLE_TYPES = ['All Types', 'Bus', 'Truck', 'Van', 'Service'];
 const STATUSES = ['All Status', 'Available', 'On Trip', 'Maintenance', 'Retired'];
@@ -46,13 +56,24 @@ function AddVehicleDrawer({ open, onClose, onAdd }) {
     setError('');
     setLoading(true);
     
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
     try {
-      const newVehicle = await vehiclesAPI.create(form);
+      // Mock validation
+      if (!form.registrationNumber || !form.model || !form.capacity) {
+        throw new Error('All required fields must be filled');
+      }
+      
+      const newVehicle = {
+        _id: Date.now().toString(),
+        ...form
+      };
+      
       onAdd(newVehicle);
       setForm({ registrationNumber: '', model: '', type: 'Bus', capacity: '', assignedDriver: '', fuelLevel: 78, status: 'Available' });
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Failed to create vehicle';
-      setError(errorMessage);
+      setError(err.message || 'Failed to create vehicle');
     } finally {
       setLoading(false);
     }
@@ -93,31 +114,11 @@ function AddVehicleDrawer({ open, onClose, onAdd }) {
 }
 
 const VehicleRegistry = () => {
-  const [vehicles, setVehicles] = useState([]);
+  const [vehicles, setVehicles] = useState(MOCK_VEHICLES);
   const [search, setSearch] = useState('');
   const [type, setType] = useState('All Types');
   const [status, setStatus] = useState('All Status');
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  // Fetch vehicles on mount
-  useEffect(() => {
-    loadVehicles();
-  }, []);
-
-  const loadVehicles = async () => {
-    try {
-      setLoading(true);
-      const data = await vehiclesAPI.getAll();
-      setVehicles(data);
-    } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Failed to load vehicles';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filteredVehicles = useMemo(() => vehicles.filter(v => {
     const query = search.trim().toLowerCase();
@@ -135,13 +136,9 @@ const VehicleRegistry = () => {
   const handleDelete = async (id) => {
     if (!confirm('Delete this vehicle? This action cannot be undone.')) return;
     
-    try {
-      await vehiclesAPI.delete(id);
-      setVehicles(prev => prev.filter(v => v._id !== id));
-    } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Failed to delete vehicle';
-      alert(errorMessage);
-    }
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 200));
+    setVehicles(prev => prev.filter(v => v._id !== id));
   };
 
   return (
@@ -170,16 +167,9 @@ const VehicleRegistry = () => {
           </div>
         </section>
 
-        {error && <div className="auth-error" role="alert"><span className="material-symbols-outlined">error</span>{error}</div>}
-
         <section className="transit-panel vehicle-table-card">
           <div className="vehicle-table-wrap">
-            {loading ? (
-              <div style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
-                <p>Loading vehicles...</p>
-              </div>
-            ) : (
-              <table className="vehicle-table">
+            <table className="vehicle-table">
                 <thead>
                   <tr>
                     <th>Icon</th>
@@ -214,9 +204,8 @@ const VehicleRegistry = () => {
                   ))}
                 </tbody>
               </table>
-            )}
-          </div>
-          {!loading && filteredVehicles.length === 0 && <EmptyState />}
+            </div>
+          {filteredVehicles.length === 0 && <EmptyState />}
           <div className="vehicle-pagination">
             <p>Showing <strong>{filteredVehicles.length}</strong> of <strong>{vehicles.length}</strong> vehicles</p>
             <div><button className="transit-btn" disabled>Previous</button><span>Page 1 of 1</span><button className="transit-btn" disabled>Next</button></div>

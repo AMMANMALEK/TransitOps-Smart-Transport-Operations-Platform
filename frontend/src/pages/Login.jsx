@@ -127,6 +127,15 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showTestCreds, setShowTestCreds] = useState(false);
+
+  const TEST_CREDENTIALS = [
+    { role: 'Admin', email: 'admin@transitops.com', password: 'Admin@123' },
+    { role: 'Fleet Manager', email: 'fleet@transitops.com', password: 'Fleet@123' },
+    { role: 'Driver', email: 'driver@transitops.com', password: 'Driver@123' },
+    { role: 'Safety Officer', email: 'safety@transitops.com', password: 'Safety@123' },
+    { role: 'Financial Analyst', email: 'finance@transitops.com', password: 'Finance@123' },
+  ];
 
   useEffect(() => {
     if (user) navigate(homeFor(user.role));
@@ -137,14 +146,18 @@ export default function Login() {
     setError('');
     setLoading(true);
     
-    try {
-      const loggedUser = await login(email.trim(), password);
-      navigate(homeFor(loggedUser.role));
-    } catch (err) {
-      setError(err.message || 'The email or password is incorrect. Please verify your credentials.');
-    } finally {
-      setLoading(false);
+    // Simulate async delay for UX
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
+    const loggedUser = login(email.trim(), password);
+    setLoading(false);
+    
+    if (!loggedUser) {
+      setError('The email or password is incorrect. Please verify your credentials.');
+      return;
     }
+    
+    navigate(homeFor(loggedUser.role));
   };
 
   return (
@@ -194,6 +207,71 @@ export default function Login() {
             </div>
 
             {error && <div className="auth-error" role="alert"><span className="material-symbols-outlined">error</span>{error}</div>}
+
+            {/* Test Credentials Helper - Development Only */}
+            {showTestCreds && (
+              <div style={{
+                padding: '12px',
+                borderRadius: '12px',
+                background: 'rgba(99,102,241,0.08)',
+                border: '1px solid rgba(99,102,241,0.2)',
+                marginBottom: '16px',
+                fontSize: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <strong style={{ color: '#4f46e5', fontSize: '11px', fontWeight: '850' }}>TEST CREDENTIALS</strong>
+                  <button type="button" onClick={() => setShowTestCreds(false)} style={{ background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', padding: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
+                  </button>
+                </div>
+                {TEST_CREDENTIALS.map(cred => (
+                  <button
+                    key={cred.email}
+                    type="button"
+                    onClick={() => { setEmail(cred.email); setPassword(cred.password); setError(''); }}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '6px 8px',
+                      marginBottom: '4px',
+                      background: 'rgba(255,255,255,0.5)',
+                      border: '1px solid rgba(99,102,241,0.15)',
+                      borderRadius: '8px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      color: '#1e293b',
+                      fontSize: '12px',
+                      fontWeight: '600'
+                    }}
+                  >
+                    <span style={{ color: '#6366f1', fontWeight: '800' }}>{cred.role}</span>: {cred.email}
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {!showTestCreds && (
+              <button
+                type="button"
+                onClick={() => setShowTestCreds(true)}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  padding: '8px',
+                  marginBottom: '16px',
+                  background: 'rgba(99,102,241,0.06)',
+                  border: '1px dashed rgba(99,102,241,0.3)',
+                  borderRadius: '10px',
+                  color: '#6366f1',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>info</span>
+                Show Test Credentials
+              </button>
+            )}
 
             <button className="auth-submit" type="submit" disabled={loading}>
               {loading ? <span className="auth-spinner" /> : <span className="material-symbols-outlined">login</span>}

@@ -33,13 +33,14 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
 
+      {/* All authenticated users can access all pages */}
       <Route path="/dashboard" element={<RoleRoute><Dashboard /></RoleRoute>} />
-      <Route path="/vehicles" element={<RoleRoute allowedRoles={['fleet_manager', 'safety_officer']}><VehicleRegistry /></RoleRoute>} />
-      <Route path="/drivers" element={<RoleRoute allowedRoles={['fleet_manager', 'safety_officer']}><DriverManagement /></RoleRoute>} />
-      <Route path="/trips" element={<RoleRoute allowedRoles={['fleet_manager', 'driver', 'safety_officer']}><TripManagement /></RoleRoute>} />
-      <Route path="/maintenance" element={<RoleRoute allowedRoles={['fleet_manager']}><MaintenanceManagement /></RoleRoute>} />
-      <Route path="/expenses" element={<RoleRoute allowedRoles={['fleet_manager', 'financial_analyst']}><FuelExpenseManagement /></RoleRoute>} />
-      <Route path="/analytics" element={<RoleRoute allowedRoles={['fleet_manager', 'safety_officer', 'financial_analyst']}><AnalyticsDashboard /></RoleRoute>} />
+      <Route path="/vehicles" element={<RoleRoute><VehicleRegistry /></RoleRoute>} />
+      <Route path="/drivers" element={<RoleRoute><DriverManagement /></RoleRoute>} />
+      <Route path="/trips" element={<RoleRoute><TripManagement /></RoleRoute>} />
+      <Route path="/maintenance" element={<RoleRoute><MaintenanceManagement /></RoleRoute>} />
+      <Route path="/expenses" element={<RoleRoute><FuelExpenseManagement /></RoleRoute>} />
+      <Route path="/analytics" element={<RoleRoute><AnalyticsDashboard /></RoleRoute>} />
 
       <Route path="*" element={user ? <Navigate to={homeFor(user.role)} replace /> : <Navigate to="/login" replace />} />
     </Routes>
