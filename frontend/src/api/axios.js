@@ -7,6 +7,21 @@ const api = axios.create({
   },
 });
 
+// Callback registry for logout — avoids window.location.href that bypasses React state
+let _onAuthFailure = null;
+export const setAuthFailureCallback = (cb) => { _onAuthFailure = cb; };
+
+const forceLogout = () => {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('vb_user');
+  if (_onAuthFailure) {
+    _onAuthFailure();
+  } else {
+    window.location.href = '/login';
+  }
+};
+
 // Request interceptor - attach authorization token
 api.interceptors.request.use(
   (config) => {
@@ -32,13 +47,9 @@ api.interceptors.response.use(
 
       try {
         const refreshToken = localStorage.getItem('refreshToken');
-        
+
         if (!refreshToken) {
-          // No refresh token — force logout
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('vb_user');
-          window.location.href = '/login';
+          forceLogout();
           return Promise.reject(error);
         }
 
@@ -55,11 +66,7 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        // Refresh failed (403 invalid refresh token or network error) — force logout
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('vb_user');
-        window.location.href = '/login';
+        forceLogout();
         return Promise.reject(refreshError);
       }
     }

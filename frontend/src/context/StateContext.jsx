@@ -1,42 +1,60 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../api/auth';
+import { setAuthFailureCallback } from '../api/axios';
 
 const StateContext = createContext();
 
-
 export const StateProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    const data = localStorage.getItem('vb_user');
-    if (!data) return null;
-    try {
-      return JSON.parse(data);
-    } catch {
-      return null;
-    }
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const [loading, setLoading] = useState(false);
-  
-  // Mock approvals (empty for now)
+  // Clear all authentication state (React + localStorage)
+  const clearAuth = () => {
+    setUser(null);
+    localStorage.removeItem('vb_user');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+  };
+
+  // Register clearAuth with the axios interceptor so 401s
+  // properly reset React state before navigating to /login
+  useEffect(() => {
+    setAuthFailureCallback(() => {
+      clearAuth();
+      window.location.replace('/login');
+    });
+  }, []);
+
+  // Validate stored token on startup — prevents stale auth loops
+  useEffect(() => {
+    const validate = async () => {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        try {
+          const userData = await authAPI.getCurrentUser();
+          setUser(userData);
+        } catch {
+          clearAuth();
+        }
+      } else {
+        clearAuth();
+      }
+      setLoading(false);
+    };
+    validate();
+  }, []);
+
+  // Mock approvals
   const approvals = [];
 
-  // Persist user to localStorage
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('vb_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('vb_user');
-    }
-  }, [user]);
-
-  // Real login - authenticates with backend and sets JWT tokens
+  // Login — authenticates with backend and sets JWT tokens
   const login = async (email, password) => {
     try {
       const data = await authAPI.login(email.trim(), password);
       if (data && data.accessToken) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
-        
+
         const loggedUser = {
           id: data.user.id,
           name: data.user.name,
@@ -44,6 +62,7 @@ export const StateProvider = ({ children }) => {
           role: data.user.role,
         };
         setUser(loggedUser);
+        localStorage.setItem('vb_user', JSON.stringify(loggedUser));
         return loggedUser;
       }
       return null;
@@ -55,10 +74,7 @@ export const StateProvider = ({ children }) => {
 
   // Logout
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('vb_user');
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    clearAuth();
   };
 
   return (
@@ -67,7 +83,8 @@ export const StateProvider = ({ children }) => {
       loading,
       login,
       logout,
-      approvals, // Add this for Header component
+      clearAuth,
+      approvals,
     }}>
       {children}
     </StateContext.Provider>

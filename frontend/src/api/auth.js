@@ -15,4 +15,15 @@ export const authAPI = {
     const response = await api.post('/auth/token', { refreshToken });
     return response.data;
   },
+
+  getCurrentUser: async () => {
+    const response = await api.get('/auth/me');
+    const { user } = response.data;
+    return {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
+  },
 };
