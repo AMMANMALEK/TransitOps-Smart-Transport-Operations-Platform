@@ -48,7 +48,7 @@ exports.createVehicle = async (req, res, next) => {
     // Explicit unique check
     const existingVehicle = await Vehicle.findOne({ registrationNumber: registrationNumber.toUpperCase().trim() });
     if (existingVehicle) {
-      return res.status(400).json({ error: `Vehicle with registration number '${registrationNumber}' already exists.` });
+      return res.status(409).json({ error: `Vehicle with registration number '${registrationNumber}' already exists.` });
     }
 
     const vehicle = new Vehicle({
@@ -87,7 +87,7 @@ exports.updateVehicle = async (req, res, next) => {
     if (registrationNumber && registrationNumber.toUpperCase().trim() !== vehicle.registrationNumber) {
       const existingVehicle = await Vehicle.findOne({ registrationNumber: registrationNumber.toUpperCase().trim() });
       if (existingVehicle) {
-        return res.status(400).json({ error: `Vehicle with registration number '${registrationNumber}' already exists.` });
+        return res.status(409).json({ error: `Vehicle with registration number '${registrationNumber}' already exists.` });
       }
       vehicle.registrationNumber = registrationNumber.toUpperCase().trim();
     }

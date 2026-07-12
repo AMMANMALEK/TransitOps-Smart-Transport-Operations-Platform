@@ -415,6 +415,259 @@ async function runTests() {
     }
 
     // ----------------------------------------------------
+    // TEST 16: Expired License Guard Check
+    // ----------------------------------------------------
+    console.log('\n[TEST 16] Attempting to create a trip with an expired-license driver...');
+    const expiredDriverRes = await fetch(`${baseUrl}/drivers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      },
+      body: JSON.stringify({
+        name: 'Expired Joe',
+        licenseNumber: 'DL-EXPIRED12',
+        licenseCategory: 'Commercial Class A',
+        licenseExpiryDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10), // 10 days ago
+        contactNumber: '+1-555-0100',
+        region: 'North'
+      })
+    });
+    const expiredDriverData = await expiredDriverRes.json();
+    const expiredDriverId = expiredDriverData.driver._id;
+
+    // Try to create a trip
+    const expiredTripRes = await fetch(`${baseUrl}/trips`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      },
+      body: JSON.stringify({
+        source: 'Warehouse A',
+        destination: 'Retail Depot B',
+        vehicleId,
+        driverId: expiredDriverId,
+        cargoWeight: 1000,
+        plannedDistance: 100
+      })
+    });
+    const expiredTripData = await expiredTripRes.json();
+    if (expiredTripRes.status === 400) {
+      console.log(`✓ Expired license blocked successfully. Msg: "${expiredTripData.error}"`);
+    } else {
+      throw new Error(`Failed expired license check: Should block, status code: ${expiredTripRes.status}`);
+    }
+
+    // ----------------------------------------------------
+    // TEST 17: Suspended Driver Guard Check
+    // ----------------------------------------------------
+    console.log('\n[TEST 17] Attempting to create a trip with a Suspended driver...');
+    const suspDriverRes = await fetch(`${baseUrl}/drivers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      },
+      body: JSON.stringify({
+        name: 'Suspended Sam',
+        licenseNumber: 'DL-SUSP99',
+        licenseCategory: 'Commercial Class A',
+        licenseExpiryDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+        contactNumber: '+1-555-0200',
+        region: 'North'
+      })
+    });
+    const suspDriverData = await suspDriverRes.json();
+    const suspDriverId = suspDriverData.driver._id;
+
+    // Update driver to Suspended
+    const suspUpdateRes = await fetch(`${baseUrl}/drivers/${suspDriverId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      },
+      body: JSON.stringify({ status: 'Suspended' })
+    });
+
+    // Try to create a trip
+    const suspTripRes = await fetch(`${baseUrl}/trips`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      },
+      body: JSON.stringify({
+        source: 'Warehouse A',
+        destination: 'Retail Depot B',
+        vehicleId,
+        driverId: suspDriverId,
+        cargoWeight: 1000,
+        plannedDistance: 100
+      })
+    });
+    const suspTripData = await suspTripRes.json();
+    if (suspTripRes.status === 400) {
+      console.log(`✓ Suspended driver blocked successfully. Msg: "${suspTripData.error}"`);
+    } else {
+      throw new Error(`Failed suspended driver check: Should block, status code: ${suspTripRes.status}`);
+    }
+
+    // ----------------------------------------------------
+    // TEST 18: Complete Guard on Draft status
+    // ----------------------------------------------------
+    console.log('\n[TEST 18] Attempting to complete a Draft trip...');
+    const draftCompRes = await fetch(`${baseUrl}/trips/${tripId2}/complete`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      },
+      body: JSON.stringify({
+        actualDistance: 100,
+        fuelConsumed: 20,
+        revenue: 1000,
+        fuelCost: 40
+      })
+    });
+    const draftCompData = await draftCompRes.json();
+    if (draftCompRes.status === 400) {
+      console.log(`✓ Rejection of Draft completion succeeded. Msg: "${draftCompData.error}"`);
+    } else {
+      throw new Error(`Failed Draft completion guard: Should reject with 400, status code: ${draftCompRes.status}`);
+    }
+
+    // ----------------------------------------------------
+    // TEST 19: Double Dispatch Guard Check
+    // ----------------------------------------------------
+    console.log('\n[TEST 19] Attempting to dispatch an already Completed trip...');
+    const compDispRes = await fetch(`${baseUrl}/trips/${tripId}/dispatch`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      }
+    });
+    const compDispData = await compDispRes.json();
+    if (compDispRes.status === 400) {
+      console.log(`✓ Rejection of Completed dispatch succeeded. Msg: "${compDispData.error}"`);
+    } else {
+      throw new Error(`Failed Completed dispatch guard: Should reject with 400, status code: ${compDispRes.status}`);
+    }
+
+    // ----------------------------------------------------
+    // TEST 20: Duplicate Vehicle registrationNumber (409 Conflict)
+    // ----------------------------------------------------
+    console.log('\n[TEST 20] Attempting to register a duplicate vehicle (TRUCK-7788)...');
+    const dupVehicleRes = await fetch(`${baseUrl}/vehicles`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      },
+      body: JSON.stringify({
+        registrationNumber: 'TRUCK-7788',
+        name: 'Volvo Copycat',
+        model: 'FH16',
+        type: 'Heavy Truck',
+        maxLoadCapacity: 10000,
+        odometer: 0,
+        acquisitionCost: 50000
+      })
+    });
+    const dupVehicleData = await dupVehicleRes.json();
+    if (dupVehicleRes.status === 409) {
+      console.log(`✓ Duplicate vehicle blocked with 409 Conflict. Msg: "${dupVehicleData.error}"`);
+    } else {
+      throw new Error(`Failed duplicate vehicle guard: Should return 409, status code: ${dupVehicleRes.status}`);
+    }
+
+    // ----------------------------------------------------
+    // TEST 21: Duplicate Driver licenseNumber (409 Conflict)
+    // ----------------------------------------------------
+    console.log('\n[TEST 21] Attempting to register a duplicate driver (DL-998877A)...');
+    const dupDriverRes = await fetch(`${baseUrl}/drivers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${managerToken}`
+      },
+      body: JSON.stringify({
+        name: 'Alex Duplicate',
+        licenseNumber: 'DL-998877A',
+        licenseCategory: 'Commercial Class A',
+        licenseExpiryDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+        contactNumber: '+1-555-0300'
+      })
+    });
+    const dupDriverData = await dupDriverRes.json();
+    if (dupDriverRes.status === 409) {
+      console.log(`✓ Duplicate driver blocked with 409 Conflict. Msg: "${dupDriverData.error}"`);
+    } else {
+      throw new Error(`Failed duplicate driver guard: Should return 409, status code: ${dupDriverRes.status}`);
+    }
+
+    // ----------------------------------------------------
+    // TEST 22: Role-based Authorization Restriction (403 Forbidden)
+    // ----------------------------------------------------
+    console.log('\n[TEST 22] Testing driver authorization restriction on POST /vehicles...');
+    // Create Driver User
+    const regDriverRes = await fetch(`${baseUrl}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({
+        name: 'Sam Driver User',
+        email: 'driver.sam@transitops.com',
+        password: 'driverpwd123',
+        role: 'Driver'
+      })
+    });
+    const regDriverData = await regDriverRes.json();
+    if (regDriverRes.status !== 201) {
+      throw new Error(`Failed to register Driver user: ${JSON.stringify(regDriverData)}`);
+    }
+
+    // Log in as Driver User
+    const drvLoginRes = await fetch(`${baseUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'driver.sam@transitops.com',
+        password: 'driverpwd123'
+      })
+    });
+    const drvLoginData = await drvLoginRes.json();
+    const driverUserToken = drvLoginData.accessToken;
+
+    // Attempt to create vehicle
+    const unauthorizedRes = await fetch(`${baseUrl}/vehicles`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${driverUserToken}`
+      },
+      body: JSON.stringify({
+        registrationNumber: 'TRUCK-9999',
+        name: 'Unauthorized Volvo',
+        model: 'FH16',
+        type: 'Heavy Truck',
+        maxLoadCapacity: 10000,
+        odometer: 0,
+        acquisitionCost: 50000
+      })
+    });
+    const unauthorizedData = await unauthorizedRes.json();
+    if (unauthorizedRes.status === 403) {
+      console.log(`✓ Driver blocked with 403 Forbidden. Msg: "${unauthorizedData.error}"`);
+    } else {
+      throw new Error(`Failed authorization check: Driver should be blocked with 403, status code: ${unauthorizedRes.status}`);
+    }
+
+    // ----------------------------------------------------
     // TEST 14: Analytics, Dashboard & operational-costs
     // ----------------------------------------------------
     console.log('\n[TEST 14] Fetching analytics dashboards & aggregations...');

@@ -45,7 +45,7 @@ exports.createDriver = async (req, res, next) => {
     // Explicit unique check
     const existingDriver = await Driver.findOne({ licenseNumber: licenseNumber.toUpperCase().trim() });
     if (existingDriver) {
-      return res.status(400).json({ error: `Driver with license number '${licenseNumber}' already exists.` });
+      return res.status(409).json({ error: `Driver with license number '${licenseNumber}' already exists.` });
     }
 
     const driver = new Driver({
@@ -83,7 +83,7 @@ exports.updateDriver = async (req, res, next) => {
     if (licenseNumber && licenseNumber.toUpperCase().trim() !== driver.licenseNumber) {
       const existingDriver = await Driver.findOne({ licenseNumber: licenseNumber.toUpperCase().trim() });
       if (existingDriver) {
-        return res.status(400).json({ error: `Driver with license number '${licenseNumber}' already exists.` });
+        return res.status(409).json({ error: `Driver with license number '${licenseNumber}' already exists.` });
       }
       driver.licenseNumber = licenseNumber.toUpperCase().trim();
     }
