@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../context/StateContext';
 
@@ -207,7 +207,7 @@ export default function Login() {
       </section>
 
       <style>{`
-        html, body { min-height: 100%; overflow: hidden; }
+        html, body { min-height: 100%; }
         .auth-page {
           min-height: 100vh;
           display: grid;
@@ -380,7 +380,6 @@ export default function Login() {
           .auth-mobile-logo .auth-logo { justify-content: center; }
         }
         @media (max-width: 520px) {
-          html, body { overflow: auto; }
           .auth-card { padding: 24px; border-radius: 20px; }
           .auth-card h2 { font-size: 28px; }
           .auth-options { align-items: flex-start; flex-direction: column; }
