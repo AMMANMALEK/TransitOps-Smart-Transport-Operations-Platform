@@ -236,7 +236,7 @@ const DriverManagement = () => {
     try {
       setLoading(true);
       const data = await driversAPI.getAll();
-      setDrivers(data);
+      setDrivers(data?.drivers || data || []);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load drivers list');
     } finally {

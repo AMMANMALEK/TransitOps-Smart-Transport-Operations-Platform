@@ -1,5 +1,5 @@
-/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from 'react';
+import { authAPI } from '../api/auth';
 
 const StateContext = createContext();
 
@@ -67,31 +67,39 @@ export const StateProvider = ({ children }) => {
     }
   }, [user]);
 
-  // Mock login - no backend required
-  const login = (email, password) => {
-    const foundUser = MOCK_USERS.find(
-      u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-    );
-
-    if (!foundUser) {
+  // Real login - authenticates with backend and sets JWT tokens
+  const login = async (email, password) => {
+    try {
+      const data = await authAPI.login(email.trim(), password);
+      if (data && data.accessToken) {
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+        
+        // Normalize role for frontend consistency (e.g. FleetManager -> fleet_manager)
+        const normalizedRole = data.user.role.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+        
+        const loggedUser = {
+          id: data.user.id,
+          name: data.user.name,
+          email: data.user.email,
+          role: normalizedRole,
+        };
+        setUser(loggedUser);
+        return loggedUser;
+      }
       return null;
+    } catch (err) {
+      console.error('Login failed:', err.response?.data || err.message);
+      throw err;
     }
-
-    const loggedUser = {
-      id: foundUser.id,
-      name: foundUser.name,
-      email: foundUser.email,
-      role: foundUser.role,
-    };
-
-    setUser(loggedUser);
-    return loggedUser;
   };
 
   // Logout
   const logout = () => {
     setUser(null);
     localStorage.removeItem('vb_user');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
   };
 
   return (

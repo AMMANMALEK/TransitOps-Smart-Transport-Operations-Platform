@@ -41,7 +41,7 @@ const ConfirmModal = ({
 
         .cm-backdrop {
           position: fixed; inset: 0; z-index: 9999;
-          background: rgba(241, 245, 249, 0.62);
+          background: rgba(15, 23, 42, 0.72);
           backdrop-filter: blur(6px);
           display: flex; align-items: center; justify-content: center;
           animation: cmFadeIn .18s ease;
@@ -49,11 +49,11 @@ const ConfirmModal = ({
         }
         .cm-card {
           width: 100%; max-width: 400px;
-          background: linear-gradient(180deg, #ffffff, #f8fafc);
-          border: 1px solid rgba(148, 163, 184, 0.25);
+          background: var(--bg-surface);
+          border: 1px solid var(--border-default);
           border-radius: 24px;
           padding: 32px;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+          box-shadow: var(--shadow-lg);
           animation: cmSlideUp .22s cubic-bezier(.22,1,.36,1);
         }
         .cm-icon-wrap {
@@ -63,26 +63,26 @@ const ConfirmModal = ({
         }
         .cm-icon-wrap.danger { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.22); }
         .cm-icon-wrap.danger span { color: #f87171; font-size: 26px; font-variation-settings: 'FILL' 1; }
-        .cm-icon-wrap.neutral { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.22); }
-        .cm-icon-wrap.neutral span { color: #fbbf24; font-size: 26px; font-variation-settings: 'FILL' 1; }
-        .cm-card h3 { margin: 0; color: #0f172a; font-size: 20px; font-weight: 900; }
-        .cm-card p  { margin: 8px 0 0; color: #64748b; font-size: 14px; line-height: 1.55; }
+        .cm-icon-wrap.neutral { background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.22); }
+        .cm-icon-wrap.neutral span { color: var(--brand-primary-hover); font-size: 26px; font-variation-settings: 'FILL' 1; }
+        .cm-card h3 { margin: 0; color: var(--text-primary); font-size: 20px; font-weight: 700; }
+        .cm-card p  { margin: 8px 0 0; color: var(--text-secondary); font-size: 14px; line-height: 1.55; }
         .cm-actions {
           display: flex; gap: 12px; margin-top: 28px;
         }
         .cm-btn {
           flex: 1; height: 44px; border: 0; border-radius: 14px;
-          font-size: 14px; font-weight: 850; cursor: pointer;
+          font-size: 14px; font-weight: 600; cursor: pointer;
           transition: transform .14s ease, box-shadow .14s ease, opacity .14s ease;
         }
         .cm-btn:hover { transform: translateY(-1px); }
         .cm-btn:active { transform: scale(.98); }
         .cm-cancel {
-          background: #ffffff;
-          border: 1px solid rgba(148,163,184,0.32);
-          color: #475569;
+          background: var(--bg-toolbar);
+          border: 1px solid var(--border-default);
+          color: var(--text-secondary);
         }
-        .cm-cancel:hover { background: #f1f5f9; color: #0f172a; }
+        .cm-cancel:hover { background: rgba(30, 41, 59, 0.9); color: var(--text-primary); }
         .cm-confirm-danger {
           background: linear-gradient(135deg, #ef4444, #dc2626);
           color: #fff;
@@ -90,11 +90,11 @@ const ConfirmModal = ({
         }
         .cm-confirm-danger:hover { box-shadow: 0 12px 28px rgba(239,68,68,0.32); }
         .cm-confirm-neutral {
-          background: linear-gradient(135deg, #f59e0b, #fbbf24);
-          color: #0f172a;
-          box-shadow: 0 8px 24px rgba(245,158,11,0.20);
+          background: var(--brand-primary);
+          color: var(--brand-primary-text-on);
+          box-shadow: var(--brand-shadow);
         }
-        .cm-confirm-neutral:hover { box-shadow: 0 12px 28px rgba(245,158,11,0.28); }
+        .cm-confirm-neutral:hover { background: var(--brand-primary-hover); }
       `}</style>
 
       {/* Backdrop */}

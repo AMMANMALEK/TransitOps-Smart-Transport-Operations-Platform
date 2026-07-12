@@ -80,8 +80,9 @@ const MaintenanceManagement = () => {
         vehiclesAPI.getAll()
       ]);
       const fetchedLogs = logsResponse.logs || [];
+      const vehiclesList = vehiclesResponse.vehicles || vehiclesResponse || [];
       setLogs(fetchedLogs);
-      setVehicles(vehiclesResponse);
+      setVehicles(vehiclesList);
       
       // Auto select first log if available
       if (fetchedLogs.length > 0) {
@@ -89,8 +90,8 @@ const MaintenanceManagement = () => {
       }
       
       // Set default vehicle in form if available
-      if (vehiclesResponse.length > 0) {
-        setForm(prev => ({ ...prev, vehicleId: vehiclesResponse[0]._id }));
+      if (vehiclesList.length > 0) {
+        setForm(prev => ({ ...prev, vehicleId: vehiclesList[0]._id }));
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load maintenance operations');

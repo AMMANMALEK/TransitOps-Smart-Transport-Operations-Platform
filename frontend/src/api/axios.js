@@ -19,21 +19,22 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor - handle 401 and token refresh
+// Response interceptor - handle 401/403 and token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const status = error.response?.status;
 
-    // If 401 and we haven't already tried to refresh
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // If 401 (expired/invalid token) and we haven't already retried
+    if (status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
         const refreshToken = localStorage.getItem('refreshToken');
         
         if (!refreshToken) {
-          // No refresh token, logout
+          // No refresh token — force logout
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('vb_user');
@@ -54,7 +55,7 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        // Refresh failed, logout
+        // Refresh failed (403 invalid refresh token or network error) — force logout
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('vb_user');
@@ -63,6 +64,8 @@ api.interceptors.response.use(
       }
     }
 
+    // If 403 on a non-auth endpoint (role permission denied) — don't redirect,
+    // just let the calling component handle the error message
     return Promise.reject(error);
   }
 );

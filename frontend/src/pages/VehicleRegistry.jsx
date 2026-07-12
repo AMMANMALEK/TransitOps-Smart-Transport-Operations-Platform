@@ -134,7 +134,7 @@ const VehicleRegistry = () => {
     try {
       setLoading(true);
       const data = await vehiclesAPI.getAll();
-      setVehicles(data || []);
+      setVehicles(data?.vehicles || data || []);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load vehicle registry');
     } finally {

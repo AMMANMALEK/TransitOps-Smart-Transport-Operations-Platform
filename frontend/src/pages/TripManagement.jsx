@@ -14,6 +14,11 @@ const statusConfig = {
   Cancelled: { cls: 'trip-badge cancelled', icon: 'cancel' },
 };
 
+function initialsFor(name) {
+  if (!name) return 'DR';
+  return name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
+}
+
 function TripBadge({ status }) {
   const cfg = statusConfig[status] || statusConfig.Draft;
   return <span className={cfg.cls}><span className="material-symbols-outlined">{cfg.icon}</span>{status}</span>;
@@ -283,8 +288,8 @@ const TripManagement = () => {
         driversAPI.getAll()
       ]);
       setTrips(tripsData.trips || []);
-      setVehicles(vehiclesData);
-      setDrivers(driversData);
+      setVehicles(vehiclesData?.vehicles || vehiclesData || []);
+      setDrivers(driversData?.drivers || driversData || []);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load trip board operations');
     } finally {

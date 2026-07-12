@@ -161,7 +161,7 @@ const FuelExpenseManagement = () => {
       ]);
       setFuelLogs(fuelData);
       setExpenses(expenseData);
-      setVehicles(vehiclesData);
+      setVehicles(vehiclesData?.vehicles || vehiclesData || []);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load financial records');
     } finally {
@@ -266,35 +266,41 @@ const FuelExpenseManagement = () => {
           </section>
         ) : (
           <>
-            <section className="db-kpi-row">
-              <div className="transit-panel db-kpi font-body-sm">
-                <span className="material-symbols-outlined text-amber-500 bg-indigo-50">payments</span>
-                <div>
-                  <p className="text-slate-500">Total Spend</p>
-                  <h3>{formatCurrency(totalSpend)}</h3>
-                  <span>Tolls, fuel, &amp; other combined</span>
+          <section className="db-kpi-row">
+              <div className="transit-panel db-kpi">
+                <div className="db-kpi-icon" style={{ background: 'rgba(99,102,241,.12)', color: '#818cf8' }}>
+                  <span className="material-symbols-outlined">payments</span>
+                </div>
+                <div className="db-kpi-body">
+                  <p className="db-kpi-label">Total Spend</p>
+                  <strong className="db-kpi-value">{formatCurrency(totalSpend)}</strong>
+                  <span className="db-kpi-sub">Tolls, fuel, &amp; other combined</span>
                 </div>
               </div>
-              <div className="transit-panel db-kpi font-body-sm">
-                <span className="material-symbols-outlined text-blue-500 bg-indigo-50">local_gas_station</span>
-                <div>
-                  <p className="text-slate-500">Fuel Expenditure</p>
-                  <h3>{formatCurrency(fuelSpend)}</h3>
-                  <span>{totalLiters.toLocaleString()} liters purchased</span>
+              <div className="transit-panel db-kpi">
+                <div className="db-kpi-icon" style={{ background: 'rgba(59,130,246,.12)', color: '#60a5fa' }}>
+                  <span className="material-symbols-outlined">local_gas_station</span>
+                </div>
+                <div className="db-kpi-body">
+                  <p className="db-kpi-label">Fuel Expenditure</p>
+                  <strong className="db-kpi-value">{formatCurrency(fuelSpend)}</strong>
+                  <span className="db-kpi-sub">{totalLiters.toLocaleString()} liters purchased</span>
                 </div>
               </div>
-              <div className="transit-panel db-kpi font-body-sm">
-                <span className="material-symbols-outlined text-green-500 bg-indigo-50">toll</span>
-                <div>
-                  <p className="text-slate-500">Tolls &amp; Other Fees</p>
-                  <h3>{formatCurrency(tollOtherSpend)}</h3>
-                  <span>FASTag &amp; miscellaneous operational costs</span>
+              <div className="transit-panel db-kpi">
+                <div className="db-kpi-icon" style={{ background: 'rgba(34,197,94,.12)', color: '#4ade80' }}>
+                  <span className="material-symbols-outlined">toll</span>
+                </div>
+                <div className="db-kpi-body">
+                  <p className="db-kpi-label">Tolls &amp; Other Fees</p>
+                  <strong className="db-kpi-value">{formatCurrency(tollOtherSpend)}</strong>
+                  <span className="db-kpi-sub">FASTag &amp; miscellaneous operational costs</span>
                 </div>
               </div>
             </section>
 
-            <section className="maintenance-grid">
-              <div className="transit-panel vehicle-table-card" style={{ gridColumn: 'span 2' }}>
+            <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(280px, 0.4fr)', gap: '24px', alignItems: 'start' }}>
+              <div className="transit-panel vehicle-table-card">
                 <div className="driver-table-head"><div><p className="transit-kicker">Unified Ledger</p><h2>Recent Expenditures</h2></div><span>{filteredTransactions.length} records found</span></div>
                 <div className="vehicle-table-wrap">
                   <table className="vehicle-table">
@@ -331,28 +337,31 @@ const FuelExpenseManagement = () => {
                 )}
               </div>
 
-              <div className="transit-panel maintenance-timeline-panel flex flex-col gap-6" style={{ background: 'linear-gradient(180deg, rgba(30,41,59,.24), rgba(15,23,42,.38))' }}>
+              <div className="transit-panel maintenance-timeline-panel" style={{ background: 'linear-gradient(180deg, rgba(30,41,59,.24), rgba(15,23,42,.38))' }}>
                 <div className="maintenance-panel-head"><div><p className="transit-kicker">Spend Analysis</p><h2>Category Breakdown</h2></div></div>
-                <div className="flex flex-col items-center justify-center p-6 gap-6">
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 16px 16px', gap: '20px' }}>
                   <div className="w-40 h-40 rounded-full flex items-center justify-center text-slate-100 font-black text-xl shadow-xl" style={{
+                    width: '140px', height: '140px', borderRadius: '999px',
                     background: 'conic-gradient(#f59e0b 0% 65%, #38bdf8 65% 85%, #a78bfa 85% 100%)',
-                    boxShadow: 'inset 0 0 40px rgba(0,0,0,0.5)'
+                    boxShadow: 'inset 0 0 40px rgba(0,0,0,0.5)',
+                    display: 'grid', placeItems: 'center',
+                    color: '#fff', fontWeight: 700, fontSize: '14px', textAlign: 'center'
                   }}>
                     {Math.round((fuelSpend / (totalSpend || 1)) * 100)}% Fuel
                   </div>
-                  <div className="w-full space-y-4">
+                  <div style={{ width: '100%', display: 'grid', gap: '12px' }}>
                     {breakdown.map((item, index) => {
                       const pct = Math.round((item.amount / (totalSpend || 1)) * 100);
                       const colors = ['#f59e0b', '#38bdf8', '#a78bfa'];
                       return (
-                        <div key={item.type} className="flex justify-between items-center text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="w-3.5 h-3.5 rounded-full" style={{ background: colors[index] }} />
-                            <span className="text-slate-400 font-bold">{item.type === 'Other' ? 'Miscellaneous' : item.type}</span>
+                        <div key={item.type} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ width: '10px', height: '10px', borderRadius: '999px', background: colors[index], display: 'inline-block' }} />
+                            <span style={{ color: '#94a3b8', fontWeight: 700 }}>{item.type === 'Other' ? 'Miscellaneous' : item.type}</span>
                           </div>
-                          <div className="text-right">
-                            <strong className="text-slate-100">{formatCurrency(item.amount)}</strong>
-                            <span className="text-slate-500 block text-xs">{pct}% share</span>
+                          <div style={{ textAlign: 'right' }}>
+                            <strong style={{ color: '#f8fafc' }}>{formatCurrency(item.amount)}</strong>
+                            <span style={{ color: '#64748b', display: 'block', fontSize: '11px' }}>{pct}% share</span>
                           </div>
                         </div>
                       );

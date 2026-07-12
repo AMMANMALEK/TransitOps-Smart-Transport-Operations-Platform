@@ -15,6 +15,30 @@ async function runTests() {
   
   // 1. Start test server
   await connectDB();
+
+  // Clear any existing collections to ensure a clean slate for smoke tests
+  console.log('Clearing database collections for smoke tests...');
+  await mongoose.connection.db.dropCollection('users').catch(() => {});
+  await mongoose.connection.db.dropCollection('vehicles').catch(() => {});
+  await mongoose.connection.db.dropCollection('drivers').catch(() => {});
+  await mongoose.connection.db.dropCollection('trips').catch(() => {});
+  await mongoose.connection.db.dropCollection('maintenancelogs').catch(() => {});
+  await mongoose.connection.db.dropCollection('fuellogs').catch(() => {});
+  await mongoose.connection.db.dropCollection('expenses').catch(() => {});
+
+  // Seed initial Admin user using env credentials
+  const User = require('./src/features/auth/user.model');
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@transitops.com';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  const adminUser = new User({
+    name: 'System Admin',
+    email: adminEmail.toLowerCase(),
+    passwordHash: adminPassword,
+    role: 'Admin'
+  });
+  await adminUser.save();
+  console.log(`✓ Admin user seeded successfully for smoke tests.`);
+
   server = app.listen(PORT, () => {
     console.log(`Test Server running on port ${PORT}`);
   });
