@@ -4,25 +4,25 @@ import { useAppState } from '../context/StateContext';
 
 const ALL_NAV = [
   { section: 'Command', items: [
-    { name: 'Dashboard', path: '/dashboard', icon: 'monitoring', roles: ['admin', 'officer', 'manager', 'vendor'] },
+    { name: 'Dashboard', path: '/dashboard', icon: 'monitoring', roles: ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'] },
   ]},
   { section: 'Operations', items: [
-    { name: 'Vehicle Registry', path: '/vehicles', icon: 'directions_bus', roles: ['admin', 'officer', 'manager', 'vendor'] },
-    { name: 'Driver Management', path: '/drivers', icon: 'badge', roles: ['admin', 'officer', 'manager', 'vendor'] },
-    { name: 'Trip Management', path: '/trips', icon: 'route', roles: ['admin', 'officer', 'manager', 'vendor'] },
-    { name: 'Maintenance', path: '/maintenance', icon: 'engineering', roles: ['admin', 'officer', 'manager', 'vendor'] },
-    { name: 'Fuel & Expenses', path: '/expenses', icon: 'payments', roles: ['admin', 'officer', 'manager', 'vendor'] },
+    { name: 'Vehicle Registry', path: '/vehicles', icon: 'directions_bus', roles: ['fleet_manager', 'safety_officer'] },
+    { name: 'Driver Management', path: '/drivers', icon: 'badge', roles: ['fleet_manager', 'safety_officer'] },
+    { name: 'Trip Management', path: '/trips', icon: 'route', roles: ['fleet_manager', 'driver', 'safety_officer'] },
+    { name: 'Maintenance', path: '/maintenance', icon: 'engineering', roles: ['fleet_manager'] },
+    { name: 'Fuel & Expenses', path: '/expenses', icon: 'payments', roles: ['fleet_manager', 'financial_analyst'] },
   ]},
   { section: 'Intelligence', items: [
-    { name: 'Reports & Analytics', path: '/analytics', icon: 'insights', roles: ['admin', 'officer', 'manager', 'vendor'] },
+    { name: 'Reports & Analytics', path: '/analytics', icon: 'insights', roles: ['fleet_manager', 'safety_officer', 'financial_analyst'] },
   ]},
 ];
 
 const ROLE_CONFIG = {
-  admin: { label: 'Platform Admin', color: '#fbbf24', bg: 'rgba(251,191,36,0.13)', icon: 'shield_person' },
-  officer: { label: 'Ops Coordinator', color: '#38bdf8', bg: 'rgba(56,189,248,0.12)', icon: 'badge' },
-  manager: { label: 'Control Manager', color: '#86efac', bg: 'rgba(34,197,94,0.12)', icon: 'verified_user' },
-  vendor: { label: 'Operator Partner', color: '#fbbf24', bg: 'rgba(251,191,36,0.13)', icon: 'business' },
+  fleet_manager: { label: 'Fleet Manager', color: '#fbbf24', bg: 'rgba(251,191,36,0.13)', icon: 'supervisor_account' },
+  driver: { label: 'Driver', color: '#38bdf8', bg: 'rgba(56,189,248,0.12)', icon: 'badge' },
+  safety_officer: { label: 'Safety Officer', color: '#86efac', bg: 'rgba(34,197,94,0.12)', icon: 'health_and_safety' },
+  financial_analyst: { label: 'Financial Analyst', color: '#d8b4fe', bg: 'rgba(168,85,247,0.12)', icon: 'query_stats' },
 };
 
 const Sidebar = ({ collapsed: controlledCollapsed, onToggleCollapsed }) => {
@@ -31,7 +31,7 @@ const Sidebar = ({ collapsed: controlledCollapsed, onToggleCollapsed }) => {
   const [localCollapsed, setLocalCollapsed] = useState(() => localStorage.getItem('vb_sidebar_collapsed') === 'true');
   const collapsed = typeof controlledCollapsed === 'boolean' ? controlledCollapsed : localCollapsed;
   const role = user?.role || 'officer';
-  const cfg = ROLE_CONFIG[role] || ROLE_CONFIG.officer;
+  const cfg = ROLE_CONFIG[role] || ROLE_CONFIG.fleet_manager;
 
   useEffect(() => {
     document.body.classList.toggle('sidebar-collapsed', collapsed);

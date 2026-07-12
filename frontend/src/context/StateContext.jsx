@@ -2,51 +2,52 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 
 const StateContext = createContext();
+const VALID_ROLES = ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'];
 
 // â”€â”€â”€ Hardcoded Users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Vendors can also self-register; these are the 4 default accounts.
 const SEED_USERS = [
   {
     id: 'USR-001',
-    name: 'Arjun Kapoor',
-    email: 'admin@transitops.com',
-    password: 'Admin@123',
-    role: 'admin',
-    roleLabel: 'Administrator',
-    symbol: 'ðŸ‘‘',
+    name: 'Aarav Fleet',
+    email: 'fleet@transitops.com',
+    password: 'Fleet@123',
+    role: 'fleet_manager',
+    roleLabel: 'Fleet Manager',
+    symbol: 'FM',
     company: 'TransitOps Control'
   },
   {
     id: 'USR-002',
-    name: 'Rahul Sharma',
-    email: 'officer@transitops.com',
-    password: 'Officer@123',
-    role: 'officer',
-    roleLabel: 'Procurement Officer',
-    symbol: 'ðŸ“‹',
-    company: 'TransitOps Control'
+    name: 'Dev Driver',
+    email: 'driver@transitops.com',
+    password: 'Driver@123',
+    role: 'driver',
+    roleLabel: 'Driver',
+    symbol: 'DR',
+    company: 'TransitOps Field Operations'
   },
   {
     id: 'USR-003',
-    name: 'Priya Mehta',
-    email: 'manager@transitops.com',
-    password: 'Manager@123',
-    role: 'manager',
-    roleLabel: 'Manager / Approver',
-    symbol: 'âœ…',
-    company: 'TransitOps Control'
+    name: 'Priya Safety',
+    email: 'safety@transitops.com',
+    password: 'Safety@123',
+    role: 'safety_officer',
+    roleLabel: 'Safety Officer',
+    symbol: 'SO',
+    company: 'TransitOps Compliance'
   },
   {
     id: 'USR-004',
-    name: 'Infra Supplies Pvt Ltd',
-    email: 'vendor@infrasupp.com',
-    password: 'Vendor@123',
-    role: 'vendor',
-    roleLabel: 'Vendor',
-    symbol: 'ðŸ­',
-    company: 'Infra Supplies Pvt Ltd'
+    name: 'Meera Finance',
+    email: 'finance@transitops.com',
+    password: 'Finance@123',
+    role: 'financial_analyst',
+    roleLabel: 'Financial Analyst',
+    symbol: 'FA',
+    company: 'TransitOps Finance'
   }
-];
+]
 
 // â”€â”€â”€ Default Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const getInitialRegisteredUsers = () => {
@@ -115,7 +116,13 @@ export const StateProvider = ({ children }) => {
 
   const [user, setUser] = useState(() => {
     const data = localStorage.getItem('vb_user');
-    return data ? JSON.parse(data) : null;
+    if (!data) return null;
+    try {
+      const storedUser = JSON.parse(data);
+      return VALID_ROLES.includes(storedUser.role) ? storedUser : null;
+    } catch {
+      return null;
+    }
   });
 
   const [vendors, setVendors] = useState(() => {

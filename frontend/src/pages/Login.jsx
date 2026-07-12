@@ -2,6 +2,15 @@
 import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../context/StateContext';
 
+const ROLE_HOME = {
+  fleet_manager: '/dashboard',
+  driver: '/trips',
+  safety_officer: '/drivers',
+  financial_analyst: '/expenses',
+};
+
+const homeFor = role => ROLE_HOME[role] || '/dashboard';
+
 const FIELD_STYLE = {
   email: { icon: 'mail', label: 'Email', type: 'email', autoComplete: 'email', placeholder: 'name@company.com' },
   password: { icon: 'lock', label: 'Password', type: 'password', autoComplete: 'current-password', placeholder: 'Enter your password' },
@@ -120,7 +129,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) navigate('/dashboard');
+    if (user) navigate(homeFor(user.role));
   }, [navigate, user]);
 
   const handleSubmit = async event => {
@@ -134,7 +143,7 @@ export default function Login() {
       setError('The email or password is incorrect. Please verify your credentials.');
       return;
     }
-    navigate('/dashboard');
+    navigate(homeFor(loggedUser.role));
   };
 
   return (
