@@ -236,7 +236,6 @@ export default function Login() {
         .auth-brand-layer {
           position: relative;
           z-index: 1;
-          height: 100%;
           min-height: 100vh;
           padding: 40px;
           display: grid;
@@ -317,14 +316,14 @@ export default function Login() {
         .auth-proof-row span { display: block; margin-top: 3px; color: #94a3b8; font-size: 12px; font-weight: 700; }
         .auth-form-panel {
           min-height: 100vh;
-          display: grid;
-          place-items: center;
+          display: flex;
+          flex-direction: column;
           padding: 40px;
           background:
             radial-gradient(circle at 30% 0%, rgba(245,158,11,.12), transparent 30%),
             linear-gradient(160deg, #0b1220, #111827 58%, #070b13);
         }
-        .auth-card-shell { width: min(100%, 480px); }
+        .auth-card-shell { width: min(100%, 480px); margin: auto; }
         .auth-mobile-logo { display: none; margin-bottom: 24px; }
         .auth-card {
           padding: 34px;
