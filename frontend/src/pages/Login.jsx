@@ -274,7 +274,7 @@ export default function Login() {
         .auth-visual-copy p { margin: 16px 0 0; max-width: 520px; color: #cbd5e1; font-size: 14px; line-height: 1.6; }
         .logistics-scene {
           position: relative;
-          align-self: center;
+          align-self: flex-start;
           margin: auto 0;
           width: min(760px, 100%);
           min-height: 330px;
