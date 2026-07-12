@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Vehicle = require('../features/vehicles/vehicle.model');
 const Driver = require('../features/drivers/driver.model');
 const FuelLog = require('../features/finance/fuelLog.model');
@@ -63,7 +64,8 @@ const validateTripCreation = async (vehicleId, driverId, cargoWeight) => {
 };
 
 /**
- * Dispatches a trip, updating statuses to "On Trip"
+ * Dispatches a trip, updating statuses to "On Trip".
+ * Uses a Mongoose transaction so vehicle + driver + trip update atomically.
  */
 const dispatchTrip = async (trip) => {
   // Validate trip status transition
@@ -71,34 +73,45 @@ const dispatchTrip = async (trip) => {
     throw new Error(`Invalid status transition: Cannot dispatch a trip in '${trip.status}' status. Must be in 'Draft'.`);
   }
 
-  // Fetch fresh vehicle and driver documents to verify state
-  const vehicle = await Vehicle.findById(trip.vehicleId);
-  if (!vehicle) {
-    throw new Error('Vehicle not found');
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // Fetch fresh vehicle and driver documents inside the transaction
+    const vehicle = await Vehicle.findById(trip.vehicleId).session(session);
+    if (!vehicle) {
+      throw new Error('Vehicle not found');
+    }
+
+    const driver = await Driver.findById(trip.driverId).session(session);
+    if (!driver) {
+      throw new Error('Driver not found');
+    }
+
+    // Re-run all business rules to prevent stale data dispatch conflicts
+    const validation = validateAssignment(vehicle, driver, trip.cargoWeight);
+    if (!validation.valid) {
+      throw new Error(validation.reason);
+    }
+
+    // Apply state transitions atomically
+    vehicle.status = 'On Trip';
+    driver.status = 'On Trip';
+    trip.status = 'Dispatched';
+
+    await vehicle.save({ session });
+    await driver.save({ session });
+    await trip.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return { trip, vehicle, driver };
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
   }
-
-  const driver = await Driver.findById(trip.driverId);
-  if (!driver) {
-    throw new Error('Driver not found');
-  }
-
-  // Re-run all business rules to prevent stale data dispatch conflicts
-  const validation = validateAssignment(vehicle, driver, trip.cargoWeight);
-  if (!validation.valid) {
-    throw new Error(validation.reason);
-  }
-
-  // Apply state transitions
-  vehicle.status = 'On Trip';
-  driver.status = 'On Trip';
-  trip.status = 'Dispatched';
-
-  // Save updates
-  await vehicle.save();
-  await driver.save();
-  await trip.save();
-
-  return { trip, vehicle, driver };
 };
 
 /**
@@ -195,6 +208,11 @@ const startMaintenance = async (maintenanceData) => {
   const vehicle = await Vehicle.findById(vehicleId);
   if (!vehicle) {
     throw new Error('Vehicle not found');
+  }
+
+  // Block maintenance creation if vehicle is currently On Trip
+  if (vehicle.status === 'On Trip') {
+    throw new Error('Cannot create maintenance for a vehicle that is currently on a trip.');
   }
 
   // Set vehicle status to "In Shop"

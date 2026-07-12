@@ -414,6 +414,293 @@ async function runTests() {
       throw new Error(`Failed Maintenance Close: ${JSON.stringify(closeMaintData)}`);
     }
 
+    // ============================================================
+    // EXTENDED TESTS — Trip + Maintenance deep-validation suite
+    // ============================================================
+
+    // We'll track pass/fail for each extended test
+    const extResults = [];
+    const extPass = (name) => { extResults.push({ name, passed: true }); console.log(`✓ PASS: ${name}`); };
+    const extFail = (name, reason) => { extResults.push({ name, passed: false, reason }); console.log(`✗ FAIL: ${name} — ${reason}`); };
+
+    // ----------------------------------------------------
+    // EXT-1: Full trip lifecycle — create, dispatch, confirm On Trip lock
+    // ----------------------------------------------------
+    console.log('\n[EXT-1] Create trip, dispatch it, confirm vehicle+driver lock to "On Trip"...');
+    try {
+      // Create a fresh trip with the available vehicle & driver
+      const ext1CreateRes = await fetch(`${baseUrl}/trips`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${managerToken}` },
+        body: JSON.stringify({
+          source: 'Depot Alpha',
+          destination: 'Hub Omega',
+          vehicleId,
+          driverId,
+          cargoWeight: 5000,
+          plannedDistance: 200
+        })
+      });
+      const ext1CreateData = await ext1CreateRes.json();
+      if (ext1CreateRes.status !== 201) throw new Error(`Trip creation failed: ${JSON.stringify(ext1CreateData)}`);
+      const ext1TripId = ext1CreateData.trip._id;
+
+      // Dispatch it
+      const ext1DispRes = await fetch(`${baseUrl}/trips/${ext1TripId}/dispatch`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${managerToken}` }
+      });
+      if (ext1DispRes.status !== 200) throw new Error(`Dispatch failed: status ${ext1DispRes.status}`);
+
+      // Confirm vehicle is On Trip
+      const ext1VehRes = await fetch(`${baseUrl}/vehicles/${vehicleId}`, {
+        headers: { 'Authorization': `Bearer ${managerToken}` }
+      });
+      const ext1VehData = await ext1VehRes.json();
+
+      // Confirm driver is On Trip
+      const ext1DrvRes = await fetch(`${baseUrl}/drivers/${driverId}`, {
+        headers: { 'Authorization': `Bearer ${managerToken}` }
+      });
+      const ext1DrvData = await ext1DrvRes.json();
+
+      if (ext1VehData.vehicle.status === 'On Trip' && ext1DrvData.driver.status === 'On Trip') {
+        extPass('EXT-1: Dispatch locks vehicle+driver to On Trip');
+      } else {
+        extFail('EXT-1: Dispatch locks vehicle+driver to On Trip',
+          `Vehicle=${ext1VehData.vehicle.status}, Driver=${ext1DrvData.driver.status}`);
+      }
+
+      // ----------------------------------------------------
+      // EXT-2: Second trip on same vehicle — confirm rejection
+      // ----------------------------------------------------
+      console.log('\n[EXT-2] Attempt second trip on same (On Trip) vehicle...');
+      const ext2Res = await fetch(`${baseUrl}/trips`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${managerToken}` },
+        body: JSON.stringify({
+          source: 'Depot Beta',
+          destination: 'Hub Gamma',
+          vehicleId,
+          driverId,
+          cargoWeight: 3000,
+          plannedDistance: 150
+        })
+      });
+      const ext2Data = await ext2Res.json();
+      if (ext2Res.status === 400) {
+        extPass('EXT-2: Second trip on busy vehicle rejected');
+        console.log(`  Rejection message: "${ext2Data.error}"`);
+      } else {
+        extFail('EXT-2: Second trip on busy vehicle rejected',
+          `Expected 400, got ${ext2Res.status}`);
+      }
+
+      // ----------------------------------------------------
+      // EXT-3: Complete trip — confirm FuelLog + odometer update
+      // ----------------------------------------------------
+      console.log('\n[EXT-3] Complete trip, verify FuelLog auto-creation + odometer...');
+
+      // Capture odometer BEFORE completion
+      const ext3PreVehRes = await fetch(`${baseUrl}/vehicles/${vehicleId}`, {
+        headers: { 'Authorization': `Bearer ${managerToken}` }
+      });
+      const ext3PreVehData = await ext3PreVehRes.json();
+      const odometerBefore = ext3PreVehData.vehicle.odometer;
+
+      const ext3CompRes = await fetch(`${baseUrl}/trips/${ext1TripId}/complete`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${managerToken}` },
+        body: JSON.stringify({
+          actualDistance: 210,
+          fuelConsumed: 38,
+          revenue: 1800,
+          fuelCost: 76
+        })
+      });
+      const ext3CompData = await ext3CompRes.json();
+
+      if (ext3CompRes.status !== 200) {
+        extFail('EXT-3: Complete trip + FuelLog + odometer', `Completion failed: status ${ext3CompRes.status}`);
+      } else {
+        // Verify the returned fuelLog exists
+        const hasFuelLog = ext3CompData.fuelLog && ext3CompData.fuelLog.liters === 38 && ext3CompData.fuelLog.cost === 76;
+
+        // Verify odometer incremented
+        const ext3PostVehRes = await fetch(`${baseUrl}/vehicles/${vehicleId}`, {
+          headers: { 'Authorization': `Bearer ${managerToken}` }
+        });
+        const ext3PostVehData = await ext3PostVehRes.json();
+        const odometerAfter = ext3PostVehData.vehicle.odometer;
+        const odometerCorrect = odometerAfter === odometerBefore + 210;
+
+        // Verify vehicle+driver restored to Available
+        const ext3PostDrvRes = await fetch(`${baseUrl}/drivers/${driverId}`, {
+          headers: { 'Authorization': `Bearer ${managerToken}` }
+        });
+        const ext3PostDrvData = await ext3PostDrvRes.json();
+        const statusesRestored = ext3PostVehData.vehicle.status === 'Available' && ext3PostDrvData.driver.status === 'Available';
+
+        if (hasFuelLog && odometerCorrect && statusesRestored) {
+          extPass('EXT-3: Complete trip + FuelLog + odometer');
+          console.log(`  FuelLog: ${ext3CompData.fuelLog.liters}L, $${ext3CompData.fuelLog.cost}`);
+          console.log(`  Odometer: ${odometerBefore} → ${odometerAfter} (+210)`);
+        } else {
+          extFail('EXT-3: Complete trip + FuelLog + odometer',
+            `FuelLog=${hasFuelLog}, Odometer=${odometerBefore}→${odometerAfter} (correct=${odometerCorrect}), Statuses=${statusesRestored}`);
+        }
+      }
+
+      // ----------------------------------------------------
+      // EXT-4: Maintenance — confirm In Shop lock + dispatch blocked
+      // ----------------------------------------------------
+      console.log('\n[EXT-4] Create maintenance, confirm In Shop, confirm dispatch blocked...');
+      const ext4MaintRes = await fetch(`${baseUrl}/maintenance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${managerToken}` },
+        body: JSON.stringify({
+          vehicleId,
+          description: 'Brake pad replacement',
+          cost: 300,
+          startDate: new Date()
+        })
+      });
+      const ext4MaintData = await ext4MaintRes.json();
+
+      if (ext4MaintRes.status !== 201) {
+        extFail('EXT-4: Maintenance In Shop lock + dispatch block', `Maintenance creation failed: status ${ext4MaintRes.status}`);
+      } else {
+        const ext4MaintLogId = ext4MaintData.log._id;
+
+        // Confirm vehicle is In Shop
+        const ext4VehRes = await fetch(`${baseUrl}/vehicles/${vehicleId}`, {
+          headers: { 'Authorization': `Bearer ${managerToken}` }
+        });
+        const ext4VehData = await ext4VehRes.json();
+        const inShop = ext4VehData.vehicle.status === 'In Shop';
+
+        // Create a draft trip (should fail because vehicle is In Shop)
+        const ext4TripRes = await fetch(`${baseUrl}/trips`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${managerToken}` },
+          body: JSON.stringify({
+            source: 'Depot X',
+            destination: 'Hub Y',
+            vehicleId,
+            driverId,
+            cargoWeight: 2000,
+            plannedDistance: 100
+          })
+        });
+        const dispatchBlocked = ext4TripRes.status === 400;
+
+        if (inShop && dispatchBlocked) {
+          extPass('EXT-4: Maintenance In Shop lock + dispatch block');
+          console.log(`  Vehicle status: ${ext4VehData.vehicle.status}`);
+        } else {
+          extFail('EXT-4: Maintenance In Shop lock + dispatch block',
+            `InShop=${inShop}, DispatchBlocked=${dispatchBlocked}`);
+        }
+
+        // Store for EXT-5
+        var ext4StoredMaintLogId = ext4MaintLogId;
+      }
+
+      // ----------------------------------------------------
+      // EXT-5: Close maintenance — confirm vehicle returns to Available
+      // ----------------------------------------------------
+      console.log('\n[EXT-5] Close maintenance, confirm vehicle returns to Available...');
+      if (ext4StoredMaintLogId) {
+        const ext5CloseRes = await fetch(`${baseUrl}/maintenance/${ext4StoredMaintLogId}/close`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${managerToken}` },
+          body: JSON.stringify({ endDate: new Date() })
+        });
+
+        if (ext5CloseRes.status !== 200) {
+          extFail('EXT-5: Close maintenance restores Available', `Close failed: status ${ext5CloseRes.status}`);
+        } else {
+          const ext5VehRes = await fetch(`${baseUrl}/vehicles/${vehicleId}`, {
+            headers: { 'Authorization': `Bearer ${managerToken}` }
+          });
+          const ext5VehData = await ext5VehRes.json();
+          if (ext5VehData.vehicle.status === 'Available') {
+            extPass('EXT-5: Close maintenance restores Available');
+          } else {
+            extFail('EXT-5: Close maintenance restores Available',
+              `Expected Available, got ${ext5VehData.vehicle.status}`);
+          }
+        }
+      } else {
+        extFail('EXT-5: Close maintenance restores Available', 'No maintenance log ID from EXT-4');
+      }
+
+      // ----------------------------------------------------
+      // EXT-6: Invalid state transitions
+      // ----------------------------------------------------
+      console.log('\n[EXT-6] Invalid state transitions — complete a Draft, dispatch a Completed...');
+
+      // 6a: Create a Draft trip and try to complete it directly
+      const ext6DraftRes = await fetch(`${baseUrl}/trips`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${managerToken}` },
+        body: JSON.stringify({
+          source: 'Depot Q',
+          destination: 'Hub R',
+          vehicleId,
+          driverId,
+          cargoWeight: 4000,
+          plannedDistance: 180
+        })
+      });
+      const ext6DraftData = await ext6DraftRes.json();
+      const ext6DraftTripId = ext6DraftData.trip._id;
+
+      const ext6CompDraftRes = await fetch(`${baseUrl}/trips/${ext6DraftTripId}/complete`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${managerToken}` },
+        body: JSON.stringify({ actualDistance: 100, fuelConsumed: 20, revenue: 1000, fuelCost: 40 })
+      });
+      const completeDraftBlocked = ext6CompDraftRes.status === 400;
+
+      // 6b: Try to dispatch the already-Completed trip (ext1TripId from EXT-1)
+      const ext6DispCompRes = await fetch(`${baseUrl}/trips/${ext1TripId}/dispatch`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${managerToken}` }
+      });
+      const dispatchCompletedBlocked = ext6DispCompRes.status === 400;
+
+      if (completeDraftBlocked && dispatchCompletedBlocked) {
+        extPass('EXT-6: Invalid state transitions rejected');
+        console.log(`  Complete Draft → 400 ✓`);
+        console.log(`  Dispatch Completed → 400 ✓`);
+      } else {
+        extFail('EXT-6: Invalid state transitions rejected',
+          `CompleteDraft=${completeDraftBlocked}, DispatchCompleted=${dispatchCompletedBlocked}`);
+      }
+
+    } catch (extError) {
+      console.error(`\n❌ Extended test suite error: ${extError.message}`);
+      extFail('Extended test suite', extError.message);
+    }
+
+    // Print extended test summary
+    console.log('\n============================================');
+    console.log('EXTENDED TEST SUMMARY');
+    console.log('============================================');
+    const extPassed = extResults.filter(r => r.passed).length;
+    const extTotal = extResults.length;
+    extResults.forEach(r => {
+      console.log(`  ${r.passed ? '✓' : '✗'} ${r.name}${r.reason ? ` — ${r.reason}` : ''}`);
+    });
+    console.log(`\n  Result: ${extPassed}/${extTotal} passed`);
+    if (extPassed < extTotal) {
+      console.log('  ⚠ Some extended tests failed!');
+    } else {
+      console.log('  🎉 All extended tests passed!');
+    }
+    console.log('============================================\n');
+
     // ----------------------------------------------------
     // TEST 16: Expired License Guard Check
     // ----------------------------------------------------
