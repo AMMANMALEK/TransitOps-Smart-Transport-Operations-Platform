@@ -1,6 +1,7 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAppState } from '../context/StateContext';
+import ConfirmModal from './ConfirmModal';
 
 const ALL_NAV = [
   { section: 'Command', items: [
@@ -47,14 +48,20 @@ const Sidebar = ({ collapsed: controlledCollapsed, onToggleCollapsed }) => {
   const userInitials = (user?.name || 'TO').split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
   const getBadge = () => null;
 
+  const [logoutOpen, setLogoutOpen] = useState(false);
+
   const handleLogout = () => {
-    if (window.confirm('Sign out of TransitOps?')) {
-      logout();
-      navigate('/login');
-    }
+    setLogoutOpen(true);
+  };
+
+  const confirmLogout = () => {
+    setLogoutOpen(false);
+    logout();
+    navigate('/login');
   };
 
   return (
+    <>
     <aside className="sidebar-container fixed left-0 top-0 z-20 h-screen" style={{ width: 'var(--sidebar-width)' }}>
       <div className="flex h-full flex-col" style={{ background: 'linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(8,13,23,0.98) 100%)', borderRight: '1px solid rgba(148,163,184,0.14)', boxShadow: '20px 0 60px rgba(0,0,0,0.28)' }}>
         <div className="flex items-center justify-between px-4 py-4 flex-shrink-0" style={{ borderBottom: '1px solid rgba(148,163,184,0.13)', minHeight: 72 }}>
@@ -102,7 +109,17 @@ const Sidebar = ({ collapsed: controlledCollapsed, onToggleCollapsed }) => {
         </div>
       </div>
     </aside>
-  );
+    <ConfirmModal
+      isOpen={logoutOpen}
+      onConfirm={confirmLogout}
+      onCancel={() => setLogoutOpen(false)}
+      title="Sign out of TransitOps?"
+      message="You'll be returned to the login screen. Any unsaved changes will be lost."
+      confirmLabel="Sign Out"
+      icon="logout"
+      danger={true}
+    />
+  </>
 };
 
 export default Sidebar;

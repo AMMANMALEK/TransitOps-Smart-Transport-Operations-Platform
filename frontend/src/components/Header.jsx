@@ -1,6 +1,7 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../context/StateContext';
+import ConfirmModal from './ConfirmModal';
 
 const Header = ({ title }) => {
   const { user, logout, approvals } = useAppState();
@@ -19,15 +20,21 @@ const Header = ({ title }) => {
   const rCfg = ROLE_CONFIG[role] || ROLE_CONFIG.officer;
   const userInitials = (user?.name || 'TO').split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
 
+  const [logoutOpen, setLogoutOpen] = useState(false);
+
   const handleLogout = () => {
     setDropdownOpen(false);
-    if (window.confirm('Sign out of TransitOps?')) {
-      logout();
-      navigate('/login');
-    }
+    setLogoutOpen(true);
+  };
+
+  const confirmLogout = () => {
+    setLogoutOpen(false);
+    logout();
+    navigate('/login');
   };
 
   return (
+    <>
     <header className="app-header-shell fixed top-0 z-10 flex items-center justify-between px-6" style={{ height: 'var(--header-height)', background: 'rgba(8,13,23,0.78)', backdropFilter: 'blur(18px)', borderBottom: '1px solid rgba(148,163,184,0.14)' }}>
       <div className="flex items-center gap-4 flex-1 min-w-0">
         <div className="hidden md:flex items-center gap-2 min-w-0">
@@ -73,6 +80,17 @@ const Header = ({ title }) => {
         </div>
       </div>
     </header>
+    <ConfirmModal
+      isOpen={logoutOpen}
+      onConfirm={confirmLogout}
+      onCancel={() => setLogoutOpen(false)}
+      title="Sign out of TransitOps?"
+      message="You'll be returned to the login screen. Any unsaved changes will be lost."
+      confirmLabel="Sign Out"
+      icon="logout"
+      danger={true}
+    />
+  </>
   );
 };
 
