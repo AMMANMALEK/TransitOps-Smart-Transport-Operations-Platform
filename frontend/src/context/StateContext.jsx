@@ -3,10 +3,49 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const StateContext = createContext();
 const VALID_ROLES = ['fleet_manager', 'driver', 'safety_officer', 'financial_analyst'];
+const ROLE_ALIASES = {
+  admin: 'fleet_manager',
+  officer: 'safety_officer',
+  manager: 'fleet_manager',
+  vendor: 'driver',
+};
+const ROLE_LABELS = {
+  fleet_manager: 'Fleet Manager',
+  driver: 'Driver',
+  safety_officer: 'Safety Officer',
+  financial_analyst: 'Financial Analyst',
+};
+const ROLE_SYMBOLS = {
+  fleet_manager: 'FM',
+  driver: 'DR',
+  safety_officer: 'SO',
+  financial_analyst: 'FA',
+};
+
+const normalizeRole = role => ROLE_ALIASES[role] || role;
+const normalizeUser = user => {
+  const role = normalizeRole(user.role);
+  return {
+    ...user,
+    role,
+    roleLabel: ROLE_LABELS[role] || user.roleLabel,
+    symbol: ROLE_SYMBOLS[role] || user.symbol,
+  };
+};
 
 // â”€â”€â”€ Hardcoded Users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Vendors can also self-register; these are the 4 default accounts.
 const SEED_USERS = [
+  {
+    id: 'USR-000',
+    name: 'Admin Fleet Manager',
+    email: 'admin@transitops.com',
+    password: 'Admin@123',
+    role: 'fleet_manager',
+    roleLabel: 'Fleet Manager',
+    symbol: 'FM',
+    company: 'TransitOps Control'
+  },
   {
     id: 'USR-001',
     name: 'Aarav Fleet',
@@ -55,7 +94,7 @@ const getInitialRegisteredUsers = () => {
   if (!data) return SEED_USERS;
 
   try {
-    const storedUsers = JSON.parse(data);
+    const storedUsers = JSON.parse(data).map(normalizeUser);
     const customUsers = storedUsers.filter(
       user => !SEED_USERS.some(seed => seed.email.toLowerCase() === user.email.toLowerCase())
     );
@@ -118,7 +157,7 @@ export const StateProvider = ({ children }) => {
     const data = localStorage.getItem('vb_user');
     if (!data) return null;
     try {
-      const storedUser = JSON.parse(data);
+      const storedUser = normalizeUser(JSON.parse(data));
       return VALID_ROLES.includes(storedUser.role) ? storedUser : null;
     } catch {
       return null;
@@ -190,14 +229,15 @@ export const StateProvider = ({ children }) => {
     );
     if (!found) return null;
 
+    const normalizedFound = normalizeUser(found);
     const loggedUser = {
-      id: found.id,
-      name: found.name,
-      email: found.email,
-      role: found.role,
-      roleLabel: found.roleLabel,
-      symbol: found.symbol,
-      company: found.company
+      id: normalizedFound.id,
+      name: normalizedFound.name,
+      email: normalizedFound.email,
+      role: normalizedFound.role,
+      roleLabel: normalizedFound.roleLabel,
+      symbol: normalizedFound.symbol,
+      company: normalizedFound.company
     };
     setUser(loggedUser);
     addLog(`User logged in: ${loggedUser.name}`, 'Authentication', loggedUser.name);
