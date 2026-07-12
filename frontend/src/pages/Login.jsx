@@ -243,41 +243,42 @@ export default function Login() {
         }
         .auth-logo { display: flex; align-items: center; gap: 14px; }
         .auth-logo-mark {
-          width: 46px; height: 46px; border-radius: 16px;
+          width: 40px; height: 40px; border-radius: 12px;
           display: grid; place-items: center;
           color: #111827;
           background: linear-gradient(135deg, #f59e0b, #fbbf24);
-          box-shadow: 0 18px 42px rgba(245, 158, 11, .28);
+          box-shadow: 0 14px 32px rgba(245, 158, 11, .28);
         }
-        .auth-logo-mark span { font-size: 25px; font-variation-settings: 'FILL' 1; }
-        .auth-logo p { margin: 0; font-size: 18px; font-weight: 900; color: #fff; letter-spacing: 0; }
-        .auth-logo span { display: block; margin-top: 2px; color: #94a3b8; font-size: 12px; font-weight: 650; }
-        .auth-visual-copy { max-width: 640px; align-self: end; }
+        .auth-logo-mark span { font-size: 22px; font-variation-settings: 'FILL' 1; }
+        .auth-logo p { margin: 0; font-size: 17px; font-weight: 900; color: #fff; letter-spacing: 0; }
+        .auth-logo span { display: block; margin-top: 2px; color: #94a3b8; font-size: 11px; font-weight: 650; }
+        .auth-visual-copy { max-width: 600px; }
         .auth-pill {
           display: inline-flex; align-items: center; gap: 8px;
-          min-height: 34px; padding: 0 13px; border-radius: 999px;
+          min-height: 30px; padding: 0 12px; border-radius: 999px;
           background: rgba(245, 158, 11, .12);
           border: 1px solid rgba(251, 191, 36, .26);
-          color: #fcd34d; font-size: 12px; font-weight: 800;
-          margin-bottom: 18px;
+          color: #fcd34d; font-size: 11px; font-weight: 800;
+          margin-bottom: 16px;
         }
-        .auth-pill span { width: 7px; height: 7px; border-radius: 999px; background: #22c55e; box-shadow: 0 0 0 5px rgba(34,197,94,.12); }
+        .auth-pill span { width: 6px; height: 6px; border-radius: 999px; background: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,.12); }
         .auth-visual-copy h1 {
           margin: 0;
-          max-width: 660px;
+          max-width: 600px;
           color: #fff;
-          font-size: clamp(38px, 5vw, 64px);
-          line-height: 1.02;
+          font-size: clamp(32px, 4vw, 52px);
+          line-height: 1.05;
           font-weight: 950;
           letter-spacing: 0;
         }
-        .auth-visual-copy p { margin: 20px 0 0; max-width: 560px; color: #cbd5e1; font-size: 15px; line-height: 1.75; }
+        .auth-visual-copy p { margin: 16px 0 0; max-width: 520px; color: #cbd5e1; font-size: 14px; line-height: 1.6; }
         .logistics-scene {
           position: relative;
           align-self: center;
           margin: auto 0;
           width: min(760px, 100%);
           min-height: 330px;
+          zoom: 0.85;
           border-radius: 28px;
           background: linear-gradient(160deg, rgba(15,23,42,.72), rgba(17,24,39,.40));
           border: 1px solid rgba(148,163,184,.18);
@@ -310,10 +311,10 @@ export default function Login() {
         .map-pin { position: absolute; width: 38px; height: 38px; border-radius: 14px; display: grid; place-items: center; background: rgba(56,189,248,.12); border: 1px solid rgba(56,189,248,.28); color: #7dd3fc; }
         .map-pin span { font-size: 21px; font-variation-settings: 'FILL' 1; }
         .pin-a { left: 57%; top: 25%; } .pin-b { right: 23%; top: 48%; color: #fbbf24; background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.28); }
-        .auth-proof-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 620px; }
-        .auth-proof-row div { padding: 15px 16px; border-radius: 18px; background: rgba(15,23,42,.62); border: 1px solid rgba(148,163,184,.16); backdrop-filter: blur(12px); }
-        .auth-proof-row strong { display: block; color: #fff; font-size: 18px; font-weight: 950; }
-        .auth-proof-row span { display: block; margin-top: 3px; color: #94a3b8; font-size: 12px; font-weight: 700; }
+        .auth-proof-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 580px; }
+        .auth-proof-row div { padding: 14px 14px; border-radius: 16px; background: rgba(15,23,42,.62); border: 1px solid rgba(148,163,184,.16); backdrop-filter: blur(12px); }
+        .auth-proof-row strong { display: block; color: #fff; font-size: 16px; font-weight: 950; }
+        .auth-proof-row span { display: block; margin-top: 2px; color: #94a3b8; font-size: 11px; font-weight: 700; }
         .auth-form-panel {
           min-height: 100vh;
           display: flex;
@@ -323,27 +324,25 @@ export default function Login() {
             radial-gradient(circle at 30% 0%, rgba(245,158,11,.12), transparent 30%),
             linear-gradient(160deg, #0b1220, #111827 58%, #070b13);
         }
-        .auth-card-shell { width: min(100%, 520px); margin: auto; }
+        .auth-card-shell { width: min(100%, 480px); margin: auto; }
         .auth-mobile-logo { display: none; margin-bottom: 24px; }
         .auth-card {
-          padding: 40px;
-          border-radius: 24px;
+          padding: 32px;
+          border-radius: 20px;
           background: linear-gradient(180deg, rgba(17,24,39,.78), rgba(15,23,42,.66));
           border: 1px solid rgba(226,232,240,.14);
-          box-shadow: 0 34px 90px rgba(0,0,0,.38);
+          box-shadow: 0 24px 60px rgba(0,0,0,.38);
           backdrop-filter: blur(22px);
         }
-        .auth-card-head { margin-bottom: 26px; }
-        .auth-secure-badge { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 0 11px; border-radius: 999px; background: rgba(34,197,94,.10); border: 1px solid rgba(34,197,94,.20); color: #86efac; font-size: 12px; font-weight: 850; margin-bottom: 14px; }
-        .auth-secure-badge span { font-size: 15px; }
-        .auth-card h2 { margin: 0; color: #fff; font-size: 32px; line-height: 1.1; font-weight: 950; letter-spacing: 0; }
-        .auth-card-head p { margin: 8px 0 0; color: #94a3b8; font-size: 14px; line-height: 1.55; }
+        .auth-card-head { margin-bottom: 24px; }
+        .auth-card h2 { margin: 0; color: #fff; font-size: 28px; line-height: 1.1; font-weight: 950; letter-spacing: 0; }
+        .auth-card-head p { margin: 6px 0 0; color: #94a3b8; font-size: 13px; line-height: 1.5; }
         .auth-field { display: block; margin-bottom: 16px; }
-        .auth-label { display: block; color: #cbd5e1; font-size: 12px; font-weight: 850; margin-bottom: 8px; }
+        .auth-label { display: block; color: #cbd5e1; font-size: 12px; font-weight: 850; margin-bottom: 6px; }
         .auth-input-wrap { position: relative; display: block; }
         .auth-input-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 18px; pointer-events: none; }
         .auth-input-wrap input {
-          width: 100%; height: 48px; border-radius: 15px;
+          width: 100%; height: 44px; border-radius: 12px;
           padding: 0 46px 0 44px;
           color: #f8fafc !important;
           background: rgba(8,13,23,.68) !important;
@@ -363,7 +362,7 @@ export default function Login() {
         .auth-options a:hover { text-decoration: underline; text-underline-offset: 3px; }
         .auth-error { display: flex; align-items: center; gap: 9px; padding: 11px 12px; border-radius: 14px; margin-bottom: 16px; color: #fca5a5; background: rgba(239,68,68,.11); border: 1px solid rgba(239,68,68,.22); font-size: 13px; font-weight: 700; }
         .auth-error span { font-size: 18px; }
-        .auth-submit { width: 100%; height: 48px; border: 0; border-radius: 15px; background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #111827; font-size: 15px; font-weight: 950; display: inline-flex; align-items: center; justify-content: center; gap: 9px; box-shadow: 0 18px 42px rgba(245,158,11,.22); }
+        .auth-submit { width: 100%; height: 44px; border: 0; border-radius: 12px; background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #111827; font-size: 14px; font-weight: 950; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 12px 32px rgba(245,158,11,.22); }
         .auth-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 22px 52px rgba(245,158,11,.30); }
         .auth-submit:disabled { cursor: not-allowed; opacity: .72; }
         .auth-submit span { font-size: 19px; }
