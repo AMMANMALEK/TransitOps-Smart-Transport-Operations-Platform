@@ -20,10 +20,10 @@ const ALL_NAV = [
 ];
 
 const ROLE_CONFIG = {
-  fleet_manager: { label: 'Fleet Manager', color: '#fbbf24', bg: 'rgba(251,191,36,0.13)', icon: 'supervisor_account' },
-  driver: { label: 'Driver', color: '#38bdf8', bg: 'rgba(56,189,248,0.12)', icon: 'badge' },
-  safety_officer: { label: 'Safety Officer', color: '#86efac', bg: 'rgba(34,197,94,0.12)', icon: 'health_and_safety' },
-  financial_analyst: { label: 'Financial Analyst', color: '#d8b4fe', bg: 'rgba(168,85,247,0.12)', icon: 'query_stats' },
+  fleet_manager: { label: 'Fleet Manager', color: '#6366f1', bg: 'rgba(99,102,241,0.13)', icon: 'supervisor_account' },
+  driver: { label: 'Driver', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)', icon: 'badge' },
+  safety_officer: { label: 'Safety Officer', color: '#10b981', bg: 'rgba(16,185,129,0.12)', icon: 'health_and_safety' },
+  financial_analyst: { label: 'Financial Analyst', color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)', icon: 'query_stats' },
 };
 
 const Sidebar = ({ collapsed: controlledCollapsed, onToggleCollapsed }) => {
@@ -71,8 +71,8 @@ const Sidebar = ({ collapsed: controlledCollapsed, onToggleCollapsed }) => {
           title={collapsed ? 'Expand sidebar' : undefined}
         >
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f59e0b, #fbbf24)', boxShadow: '0 14px 32px rgba(245,158,11,0.28)' }}>
-              <span className="material-symbols-outlined text-[#0f172a]" style={{ fontSize: 24, fontVariationSettings: "'FILL' 1" }}>directions_bus</span>
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #6366f1, #818cf8)', boxShadow: '0 14px 32px rgba(99,102,241,0.28)' }}>
+              <span className="material-symbols-outlined text-white" style={{ fontSize: 24, fontVariationSettings: "'FILL' 1" }}>directions_bus</span>
             </div>
             {!collapsed && (
               <div className="overflow-hidden">
@@ -98,8 +98,8 @@ const Sidebar = ({ collapsed: controlledCollapsed, onToggleCollapsed }) => {
               <ul className="space-y-1">
                 {visibleItems.map(item => {
                   const badge = getBadge(item);
-                  return <li key={`${item.path}-${item.name}`}><NavLink to={item.path} title={collapsed ? item.name : undefined} className={({ isActive }) => `relative flex items-center gap-3 rounded-2xl px-3 py-3 transition-all duration-150 group ${isActive ? 'text-slate-900' : 'text-slate-500 hover:text-slate-900'}`} style={({ isActive }) => ({ background: isActive ? 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(251,191,36,0.06))' : 'transparent', border: isActive ? '1px solid rgba(251,191,36,0.35)' : '1px solid transparent' })}>
-                    {({ isActive }) => <><span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 21, color: isActive ? '#d97706' : 'inherit', fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}>{item.icon}</span>{!collapsed && <span className="text-[13px] font-bold flex-1 truncate">{item.name}</span>}{!collapsed && badge > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[19px] text-center">{badge}</span>}{collapsed && badge > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />}</>}
+                  return <li key={`${item.path}-${item.name}`}><NavLink to={item.path} title={collapsed ? item.name : undefined} className={({ isActive }) => `relative flex items-center gap-3 rounded-2xl px-3 py-3 transition-all duration-150 group ${isActive ? 'text-slate-900' : 'text-slate-500 hover:text-slate-900'}`} style={({ isActive }) => ({ background: isActive ? 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(129,140,248,0.06))' : 'transparent', border: isActive ? '1px solid rgba(99,102,241,0.35)' : '1px solid transparent' })}>
+                    {({ isActive }) => <><span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 21, color: isActive ? '#6366f1' : 'inherit', fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}>{item.icon}</span>{!collapsed && <span className="text-[13px] font-bold flex-1 truncate">{item.name}</span>}{!collapsed && badge > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[19px] text-center">{badge}</span>}{collapsed && badge > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />}</>}
                   </NavLink></li>;
                 })}
               </ul>
