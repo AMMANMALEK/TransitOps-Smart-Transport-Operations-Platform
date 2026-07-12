@@ -171,7 +171,6 @@ export default function Login() {
           <div className="auth-mobile-logo"><TransitLogo /></div>
           <form className="auth-card" onSubmit={handleSubmit}>
             <div className="auth-card-head">
-              <span className="auth-secure-badge"><span className="material-symbols-outlined">encrypted</span> Secure access</span>
               <h2>Welcome Back</h2>
               <p>Sign in to monitor your transport operations workspace.</p>
             </div>
@@ -324,10 +323,10 @@ export default function Login() {
             radial-gradient(circle at 30% 0%, rgba(245,158,11,.12), transparent 30%),
             linear-gradient(160deg, #0b1220, #111827 58%, #070b13);
         }
-        .auth-card-shell { width: min(100%, 480px); margin: auto; }
+        .auth-card-shell { width: min(100%, 520px); margin: auto; }
         .auth-mobile-logo { display: none; margin-bottom: 24px; }
         .auth-card {
-          padding: 34px;
+          padding: 40px;
           border-radius: 24px;
           background: linear-gradient(180deg, rgba(17,24,39,.78), rgba(15,23,42,.66));
           border: 1px solid rgba(226,232,240,.14);
